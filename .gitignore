@@ -26,6 +26,7 @@ yarn-error.log*
 # IDEs y editores
 .idea/
 .vscode/
+.cursor/
 *.swp
 *.swo
 

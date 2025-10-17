@@ -1,28 +1,84 @@
-version: '3.8'
-
 services:
   n8n:
     image: n8nio/n8n:latest
-    container_name: n8n
-    restart: unless-stopped
+    restart: always
     ports:
       - "5678:5678"
     environment:
-      - N8N_HOST=${N8N_HOST}
-      - N8N_PORT=${N8N_PORT}
-      - N8N_PROTOCOL=${N8N_PROTOCOL}
-      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
-      - DB_TYPE=${DB_TYPE}
-      - DB_SQLITE_PATH=${DB_SQLITE_PATH}
-      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE}
-      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      # Mantener la misma clave de encriptación
+      - N8N_ENCRYPTION_KEY=your-secret-key
+      
+      # Configuración básica
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=America/Lima
+      - TZ=America/Lima
+      
+      # Base de datos
+      - DB_TYPE=sqlite
+      - DB_SQLITE_PATH=/home/node/.n8n/database.sqlite
+      - DB_SQLITE_POOL_SIZE=10
+      
+      # Mejoras de rendimiento
+      - N8N_METRICS=true
+      - N8N_HIRING_BANNER_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=true
+      
+      # Configuración de ejecución
+      - EXECUTIONS_DATA_SAVE_ON_ERROR=all
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
+      - EXECUTIONS_DATA_SAVE_ON_PROGRESS=true
+      - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
+      
+      # OpenAI (ajustar según tus necesidades)
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_MODEL=${OPENAI_MODEL}
+      - OPENAI_MODEL=gpt-4
     volumes:
-      - ../:/workspace
       - ./storage:/home/node/.n8n
       - ./workflows:/home/node/.n8n/workflows
-    
+    networks:
+      - n8n-network
+    depends_on:
+      - postgres
 
-    working_dir: /workspace
+  postgres:
+    image: postgres:latest
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=marketai_seo
+      - POSTGRES_USER=marketai_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-marketai_secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - n8n-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marketai_user -d marketai_seo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer:latest
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=postgres
+    networks:
+      - n8n-network
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  n8n-network:
+    driver: bridge
