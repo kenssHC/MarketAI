@@ -1,230 +1,220 @@
 # MarketAI - Módulo SEO
 
-Sistema automatizado para generación de contenido SEO optimizado utilizando IA.
+Sistema automatizado de generación de contenido SEO con Inteligencia Artificial.
 
-## 🎯 Descripción
+---
 
-Este módulo automatiza el proceso completo de creación de contenido SEO, desde la investigación de keywords hasta la publicación en WordPress, incluyendo generación de imágenes y copys para redes sociales.
+## 🚀 Inicio Rápido (5 minutos)
 
-## 📋 Estructura del Proyecto
+### 1. Inicia los servicios
+```powershell
+cd n8n
+docker compose up -d
+```
+
+### 2. Accede a n8n
+Abre http://localhost:5678 y crea tu cuenta.
+
+### 3. Importa workflows
+Importa los 6 workflows desde `n8n/workflows/` en n8n.
+
+### 4. Configura credenciales PostgreSQL
+- Settings → Credentials → PostgreSQL
+- Host: `postgres`, Database: `marketai_seo`
+- User: `marketai_user`, Password: `marketai_secure_password`
+
+### 5. Activa workflows
+Activa los 6 workflows (switch verde).
+
+### 6. Verifica
+```powershell
+cd scripts
+.\verificar_sistema.ps1
+.\test_workflows.ps1
+```
+
+📚 **[Guía completa](docs/quickstart.md)** | 🔧 **[Troubleshooting](docs/troubleshooting.md)**
+
+---
+
+## 📂 Estructura del Proyecto
 
 ```
 seo-module/
-  README.md
-  .gitignore
-  .env.example
-  prompts/                  # Prompts versionados para IA
-    prompt_1_keywords.md
-    prompt_2_ideas_clasifica.md
-    prompt_3_redaccion.md
-    prompt_4_json_a_articulo.md
-  n8n/
-    docker-compose.yml      # n8n + PostgreSQL + Adminer
-    migrations/             # Migraciones SQL
-      001_initial_schema.sql
-      README.md             # Documentación detallada del esquema
-    storage/                # Datos de n8n (auto-generado)
-    workflows/              # Workflows exportados de n8n
-      seo_01_keywords_workflow.json
-      seo_02_ideas_workflow.json
-      seo_03_redaccion_workflow.json
-      seo_04_formateo_workflow.json
+├── docs/                    # 📚 Documentación completa
+│   ├── quickstart.md       # Guía de inicio rápido
+│   ├── workflows/          # Docs de cada workflow
+│   └── troubleshooting.md  # Solución de problemas
+├── scripts/                 # 🧪 Scripts de prueba
+│   ├── verificar_sistema.ps1
+│   ├── test_workflows.ps1
+│   ├── test_ingesta.ps1
+│   └── limpiar_datos_test.ps1
+├── n8n/                     # ⚙️ Configuración n8n
+│   ├── workflows/          # 6 workflows JSON
+│   ├── migrations/         # Migraciones SQL
+│   └── docker-compose.yml
+└── prompts/                 # 🤖 Prompts IA versionados
+    └── v1/                 # Versión 1.0
 ```
 
-## 🗄️ Base de Datos (PostgreSQL)
+---
 
-### Tablas Principales:
-- **keywords**: Clusters de keywords analizadas (GKP + manual)
-- **ideas**: 30 ideas de contenido por cluster (con/sin investigación)
-- **drafts**: Artículos con metadatos SEO, imágenes y QA
-- **jobs_log**: Registro de trabajos ejecutados (para monitoreo)
+## 🔄 Los 6 Workflows
 
-### Vistas:
-- **v_pipeline_overview**: Resumen del estado del pipeline
-- **v_recent_job_failures**: Últimos fallos para debugging
+| # | Workflow | Función | Endpoint |
+|---|----------|---------|----------|
+| 1 | Keywords Analysis | Analiza y genera keywords | `/webhook/seo/keywords` |
+| 2 | Ideas Generator | Genera 30 ideas de contenido | `/webhook/seo/ideas` |
+| 3 | Redacción | Redacta artículos SEO | `/webhook/seo/redaccion` |
+| 4 | Formateo HTML | Convierte JSON a HTML | `/webhook/seo/formatear` |
+| 5 | Ingesta CSV | Importa keywords desde CSV | `/webhook/seo/ingesta/csv` |
+| 6 | Ingesta Manual | Ingreso manual de keywords | `/webhook/seo/ingesta/manual` |
 
-📚 **Documentación completa**: Ver `n8n/migrations/README.md`
+📖 **[Documentación completa de workflows](docs/workflows/overview.md)**
 
-## 🚀 Inicio Rápido
+---
 
-### 1. Requisitos Previos
-- Docker Desktop instalado
-- Credenciales de OpenAI (API key)
+## 🧪 Scripts Disponibles
 
-### 2. Configuración
-
-**Opción A: Variables en línea (recomendado para MVP)**
+### Verificación del Sistema
 ```powershell
-cd seo-module/n8n
-$env:OPENAI_API_KEY="sk-tu-api-key-aqui"
-$env:POSTGRES_PASSWORD="tu-password-seguro"
-docker compose up -d postgres n8n
+cd scripts
+.\verificar_sistema.ps1    # Verifica Docker, n8n, PostgreSQL
 ```
 
-**Opción B: Archivo .env**
-1. Crea `seo-module/.env` basado en `.env.example`
-2. Completa las variables necesarias
-3. Ejecuta: `docker compose up -d postgres n8n`
-
-### 3. Verificar Instalación
-
+### Pruebas de Workflows
 ```powershell
-# Ver servicios corriendo
-docker compose ps
-
-# Verificar tablas creadas
-docker compose exec postgres psql -U marketai_user -d marketai_seo -c "\dt"
+.\test_workflows.ps1        # Prueba los 6 workflows
+.\test_ingesta.ps1          # Prueba workflows 5 y 6
 ```
 
-**Servicios disponibles:**
-- 🌐 n8n: http://localhost:5678
-- 🗄️ PostgreSQL: localhost:5432
-- 💾 Base de datos: `marketai_seo`
-- 👤 Usuario DB: `marketai_user`
-
-### 4. Acceso a n8n
-
-1. Abre http://localhost:5678
-2. Crea tu cuenta de administrador (primera vez)
-3. Importa los workflows desde `n8n/workflows/`
-
-## 🔄 Pipeline de Contenido (18 Tareas)
-
-### ✅ Tareas Completadas:
-- [x] **Tarea 1**: Repo/entorno del módulo SEO
-- [x] **Tarea 2**: Esquema PostgreSQL + migraciones ← **ACTUAL**
-
-### 🔜 Próximas Tareas:
-- [ ] **Tarea 3**: Cargar prompts versionados
-- [ ] **Tarea 4**: Endpoint ingesta de keywords
-- [ ] **Tarea 5**: Job "cluster de keywords"
-- [ ] **Tarea 6**: Job "30 ideas y clasificación"
-- [ ] **Tarea 7**: Job "redacción sin investigación"
-- [ ] **Tarea 8**: Integración Perplexity/Serper
-- [ ] **Tarea 9**: Job "artículo desde JSON investigado"
-- [ ] **Tarea 10**: Generación de imágenes (Leonardo/DALL-E)
-- [ ] **Tarea 11**: QA SEO automático
-- [ ] **Tarea 12**: UI de aprobación
-- [ ] **Tarea 13**: Publicación WordPress
-- [ ] **Tarea 14**: Copys para LinkedIn/Facebook
-- [ ] **Tarea 15**: Logs y métricas
-- [ ] **Tarea 16**: Manejo de errores y reintentos
-- [ ] **Tarea 17**: Documentación SOP
-- [ ] **Tarea 18**: Demo E2E
-
-## 🔧 Comandos Útiles
-
-### Docker
+### Mantenimiento
 ```powershell
-# Iniciar servicios
-cd seo-module/n8n
-docker compose up -d postgres n8n
-
-# Ver logs
-docker compose logs -f
-
-# Detener servicios
-docker compose down
-
-# Reiniciar PostgreSQL (si hay problemas)
-docker compose restart postgres
+.\limpiar_datos_test.ps1    # Elimina keywords de prueba
 ```
+
+---
+
+## 🗄️ Base de Datos
+
+**PostgreSQL** con 5 tablas principales:
+- `keywords` - Keywords y clusters
+- `ideas` - Ideas de contenido generadas
+- `drafts` - Artículos con metadatos SEO
+- `jobs_log` - Registro de ejecuciones
+- `images` - Metadatos de imágenes
+
+📊 **[Documentación del esquema](n8n/migrations/README.md)**
+
+---
+
+## 🤖 Prompts de IA
+
+Sistema de prompts versionados para generación de contenido:
+
+- **v1/01** - Clustering de keywords
+- **v1/02** - Generación de ideas
+- **v1/03** - Redacción simple
+- **v1/04** - Redacción investigada
+- **v1/05** - Generación de imágenes
+
+📝 **[Documentación de prompts](prompts/README.md)**
+
+---
+
+## 🎯 Pipeline Completo
+
+```
+Ingesta Keywords (WF 5-6)
+    ↓
+Clustering IA (WF 1)
+    ↓
+Ideas (WF 2)
+    ↓
+Redacción (WF 3)
+    ↓
+Formateo HTML (WF 4)
+    ↓
+Publicación (Futuro)
+```
+
+---
+
+## 📚 Documentación
+
+### Guías
+- **[Inicio Rápido](docs/quickstart.md)** - Configuración en 5 minutos
+- **[Troubleshooting](docs/troubleshooting.md)** - Solución de problemas comunes
+
+### Workflows
+- **[Resumen de Workflows](docs/workflows/overview.md)** - Los 6 workflows
+- **[Ingesta CSV](docs/workflows/ingesta-csv.md)** - Workflow 5
+- **[Ingesta Manual](docs/workflows/ingesta-manual.md)** - Workflow 6
 
 ### Base de Datos
-```powershell
-# Conectarse a PostgreSQL
-docker compose exec postgres psql -U marketai_user -d marketai_seo
+- **[Esquema PostgreSQL](n8n/migrations/README.md)** - Tablas y relaciones
 
-# Ver todas las tablas
-docker compose exec postgres psql -U marketai_user -d marketai_seo -c "\dt"
-
-# Ver estructura de una tabla
-docker compose exec postgres psql -U marketai_user -d marketai_seo -c "\d keywords"
-
-# Consultar datos
-docker compose exec postgres psql -U marketai_user -d marketai_seo -c "SELECT * FROM v_pipeline_overview;"
-
-# Backup
-docker compose exec postgres pg_dump -U marketai_user marketai_seo > backup_$(Get-Date -Format yyyyMMdd).sql
-```
-
-## 🧪 Probar el Sistema
-
-### Test 1: Verificar n8n y PostgreSQL
-```powershell
-# 1. Verificar que n8n responde
-Invoke-WebRequest -Uri "http://localhost:5678" -UseBasicParsing
-
-# 2. Verificar PostgreSQL
-docker compose exec postgres pg_isready -U marketai_user -d marketai_seo
-```
-
-### Test 2: Probar workflow de keywords (cuando esté configurado)
-```powershell
-$body = @{ 
-    tema = "marketing digital"
-    tipo = "blog"
-    intencion = "informativa"
-    audiencia = "emprendedores"
-    nicho = "marketing"
-} | ConvertTo-Json
-
-Invoke-WebRequest -Uri "http://localhost:5678/webhook-test/seo/keywords" `
-    -Method Post `
-    -Headers @{'Content-Type'='application/json'} `
-    -Body $body
-```
-
-## 📝 Variables de Entorno Necesarias
-
-### Esenciales (MVP):
-```bash
-OPENAI_API_KEY=sk-...          # Para generación de contenido
-POSTGRES_PASSWORD=...          # Para la base de datos
-```
-
-### Opcionales (Funcionalidades Avanzadas):
-```bash
-PERPLEXITY_API_KEY=...         # Para investigación con IA
-SERPER_API_KEY=...             # Para búsqueda en Google
-LEONARDO_API_KEY=...           # Para generación de imágenes
-AWS_ACCESS_KEY_ID=...          # Para almacenar imágenes en S3
-WORDPRESS_SITE_URL=...         # Para publicación automática
-```
-
-## 📚 Documentación Adicional
-
-- **Base de Datos**: Ver `n8n/migrations/README.md`
-- **Prompts**: Ver archivos en `prompts/`
-- **Arquitectura Completa**: Ver `Herramientas/Propuesta de arquitectura de microservicios.txt`
-- **Lista de Tareas**: Ver `Herramientas/Lista de tareas del modulo SEO.txt`
-
-## ⚠️ Notas Importantes
-
-1. **Primera ejecución**: Las migraciones SQL se ejecutan automáticamente
-2. **Datos persistentes**: Se guardan en volúmenes de Docker
-3. **Puerto 5432**: Asegúrate de que no esté ocupado por otra instancia de PostgreSQL
-4. **OpenAI API Key**: Necesaria desde la Tarea 4 en adelante
+---
 
 ## 🆘 Solución de Problemas
 
-**PostgreSQL no inicia:**
+### Servicios no inician
 ```powershell
-docker compose down
-docker volume rm n8n_postgres_data
-docker compose up -d postgres
+docker compose restart
 ```
 
-**n8n no se conecta a OpenAI:**
-- Verifica que la variable `OPENAI_API_KEY` esté configurada
-- Revisa los logs: `docker compose logs n8n`
+### Workflows devuelven 404
+- Verifica que estén **ACTIVOS** (switch verde) en n8n
 
-**Tablas no se crearon:**
-- Verifica los logs de PostgreSQL: `docker compose logs postgres`
-- Las migraciones están en: `n8n/migrations/001_initial_schema.sql`
+### Workflows devuelven "Workflow was started"
+- Asegúrate de usar `/webhook/...` (no `/webhook-test/...`)
+- El workflow debe estar ACTIVO
 
-## 📞 Estado del Proyecto
+📖 **[Guía completa de troubleshooting](docs/troubleshooting.md)**
 
-**Versión actual**: MVP v0.1  
-**Última actualización**: 17 Octubre 2025  
-**Estado**: Tarea 2 completada ✅ (PostgreSQL configurado)
+---
+
+## 🔗 Enlaces Útiles
+
+- **n8n UI:** http://localhost:5678
+- **PostgreSQL:** localhost:5432
+- **Base de datos:** `marketai_seo`
+
+---
+
+## 📊 Estado del Proyecto
+
+**Versión:** v0.4  
+**Última actualización:** 17 Octubre 2025
+
+### Completado ✅
+- [x] Infraestructura (Docker + n8n + PostgreSQL)
+- [x] Base de datos (5 tablas + vistas)
+- [x] Prompts IA (5 prompts v1)
+- [x] 6 Workflows funcionales
+- [x] Ingesta de Keywords (CSV + Manual)
+- [x] Documentación completa
+
+### En Desarrollo 🔄
+- Clustering automático con IA (Tarea 5)
+- Generación de 30 ideas (Tarea 6)
+
+### Planificado 📅
+- Redacción de artículos
+- Generación de imágenes
+- QA SEO automático
+- Publicación WordPress
+
+---
+
+## 📝 Notas
+
+- Los workflows 1-4 requieren `OPENAI_API_KEY` configurada
+- Los workflows 5-6 solo requieren PostgreSQL
+- Todos los datos se guardan en volúmenes de Docker
+
+---
+
+**Desarrollado para MarketAI**  
+**Documentación completa:** [docs/README.md](docs/README.md)
