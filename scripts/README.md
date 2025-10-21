@@ -1,10 +1,10 @@
 # 📜 Scripts de Prueba y Verificación
 
-Este directorio contiene **9 scripts organizados** para probar y verificar el módulo SEO de MarketAI.
+Este directorio contiene **15 scripts organizados** para probar y verificar el módulo SEO de MarketAI.
 
 ---
 
-## 🎯 Scripts de Verificación General (3)
+## 🎯 Scripts de Verificación General (4)
 
 ### 1. `verificar_sistema.ps1`
 **Propósito:** Verifica que toda la infraestructura esté funcionando
@@ -42,7 +42,7 @@ cd seo-module\scripts
 ---
 
 ### 3. `test_workflows.ps1`
-**Propósito:** Prueba todos los 6 workflows a la vez
+**Propósito:** Prueba todos los 9 workflows a la vez
 
 **Qué hace:**
 - 🔄 Ejecuta un test rápido en cada workflow
@@ -70,7 +70,7 @@ cd seo-module\scripts
 
 ---
 
-## 🔬 Scripts de Prueba Individual (6)
+## 🔬 Scripts de Prueba Individual (9)
 
 Cada workflow tiene su propio script de prueba detallado.
 
@@ -189,6 +189,209 @@ beneficios del cafe,9900,High
 
 ---
 
+### 10. `test_workflow7.ps1` - Clustering de Keywords ⭐ **NUEVO**
+**Workflow:** SEO - 07 Clustering de Keywords  
+**Endpoint:** `/webhook-test/seo/clustering`  
+**Requiere:** PostgreSQL + OpenAI API Key
+
+**Prueba:**
+```powershell
+.\test_workflow7.ps1
+```
+
+**Qué hace:**
+- Lee keywords pendientes de PostgreSQL
+- Agrupa keywords en clusters temáticos usando IA
+- Usa el Prompt #1 oficial
+- Guarda clusters en PostgreSQL
+- Archiva keywords originales
+- Muestra clusters generados con principal + secundarias
+
+**Datos de entrada:**
+```json
+{
+  "project_name": "Proyecto X",  // Opcional
+  "limit": 50                     // Opcional
+}
+```
+
+**Respuesta:**
+- Total keywords procesadas
+- Total clusters creados
+- Detalle de cada cluster (principal + secundarias)
+
+**Nota importante:** Este workflow es parte de la **Tarea 5** y completa el flujo E2E:
+```
+Ingesta (Tarea 4) → Clustering (Tarea 5) → Ideas (Tarea 6)
+```
+
+---
+
+### 11. `test_workflow8.ps1` - Generación de Ideas ⭐ **NUEVO**
+**Workflow:** SEO - 08 Generación de Ideas  
+**Endpoint:** `/webhook-test/seo/ideas-generation`  
+**Requiere:** PostgreSQL + OpenAI API Key
+
+**Prueba:**
+```powershell
+.\test_workflow8.ps1
+```
+
+**Qué hace:**
+- Lee clusters procesados de PostgreSQL (Tarea 5)
+- Genera 30 ideas de contenido únicas por cada cluster usando IA
+- Usa el Prompt #2 oficial
+- Clasifica ideas en "Requiere investigación" o "No requiere investigación"
+- Guarda ideas en tabla `ideas` de PostgreSQL
+- Muestra resumen con balance de categorías
+
+**Datos de entrada:**
+```json
+{
+  "keyword_cluster_id": "uuid",  // Opcional: cluster específico
+  "limit": 3                      // Opcional: limitar clusters a procesar
+}
+```
+
+**Respuesta:**
+- Total clusters procesados
+- Total ideas generadas (30 por cluster)
+- Detalle por cluster: con/sin investigación
+- Balance esperado: ~50% cada categoría
+
+**Nota importante:** Este workflow es parte de la **Tarea 6** y continúa el flujo E2E:
+```
+Ingesta (Tarea 4) → Clustering (Tarea 5) → Ideas (Tarea 6) → Redacción (Tarea 7)
+```
+
+---
+
+### 12. `test_workflow9.ps1` - Redacción Simple ⭐ **NUEVO**
+**Workflow:** SEO - 09 Redacción Simple  
+**Endpoint:** `/webhook-test/seo/redaccion/simple`  
+**Requiere:** PostgreSQL + OpenAI API Key
+
+**Prueba:**
+```powershell
+.\test_workflow9.ps1
+```
+
+**Qué hace:**
+- Lee ideas pendientes con categoría "No requiere investigación"
+- Genera drafts completos con contenido de 600+ palabras usando IA
+- Usa el Prompt #3 oficial
+- Extrae y guarda metadatos SEO (Meta Title, Meta Description, Tags)
+- Calcula word count del contenido
+- Guarda drafts en tabla `drafts` de PostgreSQL
+- Actualiza status de ideas a `draft_created`
+
+**Datos de entrada:**
+```json
+{
+  "idea_id": "uuid",  // Opcional: idea específica
+  "limit": 5          // Opcional: limitar ideas a procesar (default: 5)
+}
+```
+
+**Respuesta:**
+- Total ideas procesadas
+- Total drafts creados
+- Detalle de cada draft: título, palabras, meta title, tags
+
+**Nota importante:** Este workflow es parte de la **Tarea 7** y continúa el flujo E2E:
+```
+Ingesta (T4) → Clustering (T5) → Ideas (T6) → Redacción (T7)
+```
+
+**Tiempo estimado:** 60-120 segundos por idea (OpenAI generando 600+ palabras)
+
+---
+
+### 13. `test_e2e_ingesta_clustering.ps1` - Test E2E (Tareas 4+5) ⭐
+**Propósito:** Prueba el flujo completo de Tarea 4 + Tarea 5
+
+**Prueba:**
+```powershell
+.\test_e2e_ingesta_clustering.ps1
+```
+
+**Qué hace:**
+1. Limpia datos de tests anteriores
+2. Importa 10 keywords de prueba (Workflow 5)
+3. Verifica keywords pendientes en PostgreSQL
+4. Ejecuta clustering (Workflow 7)
+5. Muestra estadísticas completas
+6. Lista todos los clusters generados
+
+**Resultado esperado:**
+- ✅ 10 keywords importadas
+- ✅ 2-3 clusters creados
+- ✅ Keywords originales archivadas
+- ✅ Clusters con principal + secundarias
+
+**Tiempo estimado:** 30-60 segundos (incluye llamadas a OpenAI)
+
+---
+
+### 14. `test_e2e_completo.ps1` - Test E2E Completo (Tareas 4+5+6) ⭐⭐
+**Propósito:** Prueba el flujo completo de Tarea 4 + Tarea 5 + Tarea 6
+
+**Prueba:**
+```powershell
+.\test_e2e_completo.ps1
+```
+
+**Qué hace:**
+1. Limpia datos de tests anteriores
+2. Importa 10 keywords de prueba (Workflow 5)
+3. Ejecuta clustering (Workflow 7)
+4. Genera ideas de contenido (Workflow 8)
+5. Muestra estadísticas completas de todo el flujo
+6. Verifica en PostgreSQL
+
+**Resultado esperado:**
+- ✅ 10 keywords importadas
+- ✅ 2-3 clusters creados
+- ✅ 60-90 ideas generadas (30 por cluster)
+- ✅ Balance 50/50 en categorías de ideas
+- ✅ Todas las relaciones FK correctas
+
+**Tiempo estimado:** 2-3 minutos (incluye múltiples llamadas a OpenAI)
+
+---
+
+### 15. `test_e2e_completo_con_redaccion.ps1` - Test E2E COMPLETO (Tareas 4+5+6+7) ⭐⭐⭐ **NUEVO**
+**Propósito:** Prueba el flujo completo E2E incluyendo redacción
+
+**Prueba:**
+```powershell
+.\test_e2e_completo_con_redaccion.ps1
+```
+
+**Qué hace:**
+1. Limpia datos de tests anteriores
+2. Importa 10 keywords de prueba (Workflow 5)
+3. Ejecuta clustering (Workflow 7)
+4. Genera ideas de contenido (Workflow 8)
+5. **Genera drafts para ideas sin investigación (Workflow 9)** ⭐ NUEVO
+6. Muestra estadísticas completas del pipeline completo
+7. Verifica relaciones en PostgreSQL
+
+**Resultado esperado:**
+- ✅ 10 keywords importadas
+- ✅ 2-3 clusters creados
+- ✅ 60-90 ideas generadas (30 por cluster)
+- ✅ 3+ drafts de contenido (ideas sin investigación)
+- ✅ Drafts con 600+ palabras
+- ✅ Metadatos SEO completos
+- ✅ Relaciones FK correctas en todo el pipeline
+
+**Tiempo estimado:** 4-6 minutos (incluye generación de contenido largo)
+
+**Este es el test más completo del proyecto:** Valida el pipeline completo desde ingesta de keywords hasta contenido redactado listo para publicar.
+
+---
+
 ## 📊 Flujo de Trabajo Recomendado
 
 ### 1️⃣ Primera vez (Verificación completa)
@@ -201,12 +404,24 @@ beneficios del cafe,9900,High
 
 # 3. Probar todos los workflows
 .\test_workflows.ps1
+
+# 4. Probar flujo E2E COMPLETO (Ingesta + Clustering + Ideas + Redacción)
+.\test_e2e_completo_con_redaccion.ps1
 ```
 
 ### 2️⃣ Desarrollo diario
 ```powershell
 # Probar workflow específico que estás editando
-.\test_workflow5.ps1
+.\test_workflow9.ps1
+
+# O probar el flujo E2E COMPLETO (Tareas 4 + 5 + 6 + 7)
+.\test_e2e_completo_con_redaccion.ps1
+
+# O probar solo hasta ideas (Tareas 4 + 5 + 6)
+.\test_e2e_completo.ps1
+
+# O probar solo Tareas 4 + 5
+.\test_e2e_ingesta_clustering.ps1
 
 # O probar todos rápidamente
 .\test_workflows.ps1
@@ -217,16 +432,20 @@ beneficios del cafe,9900,High
 # Verificación completa
 .\verificar_sistema.ps1
 .\test_workflows.ps1
+.\test_e2e_completo_con_redaccion.ps1
 ```
 
 ---
 
 ## ⚠️ Notas Importantes
 
-### Workflows con OpenAI (1, 2, 3)
+### Workflows con OpenAI (1, 2, 3, 7, 8, 9)
 - Requieren `OPENAI_API_KEY` configurada en el archivo `.env`
 - Un error de **timeout** o **API key** significa que el workflow **SÍ está activo**
 - Solo un error **404** significa que el workflow está **inactivo**
+- **Workflow 7 (Clustering):** Usa el Prompt #1 oficial (Tarea 5)
+- **Workflow 8 (Ideas):** Usa el Prompt #2 oficial (Tarea 6), genera exactamente 30 ideas
+- **Workflow 9 (Redacción):** Usa el Prompt #3 oficial (Tarea 7), genera contenido de 600+ palabras
 
 ### Workflows sin OpenAI (4, 5, 6)
 - No requieren configuración adicional
@@ -273,21 +492,27 @@ docker compose restart postgres
 scripts/
 ├── README.md (este archivo)
 │
-├── Verificación (3)
+├── Verificación (6)
 │   ├── verificar_sistema.ps1
 │   ├── verificar_sprint.ps1
-│   └── test_workflows.ps1
+│   ├── test_workflows.ps1
+│   ├── test_e2e_ingesta_clustering.ps1
+│   ├── test_e2e_completo.ps1
+│   └── test_e2e_completo_con_redaccion.ps1  ⭐ NUEVO
 │
-└── Tests Individuales (6)
+└── Tests Individuales (9)
     ├── test_workflow1.ps1 (Keywords)
     ├── test_workflow2.ps1 (Ideas)
     ├── test_workflow3.ps1 (Redacción)
     ├── test_workflow4.ps1 (Formateo)
     ├── test_workflow5.ps1 (Ingesta CSV)
-    └── test_workflow6.ps1 (Ingesta Manual)
+    ├── test_workflow6.ps1 (Ingesta Manual)
+    ├── test_workflow7.ps1 (Clustering)
+    ├── test_workflow8.ps1 (Ideas Generation)
+    └── test_workflow9.ps1 (Redacción Simple) ⭐ NUEVO
 ```
 
-**Total: 9 scripts organizados**
+**Total: 15 scripts organizados**
 
 ---
 

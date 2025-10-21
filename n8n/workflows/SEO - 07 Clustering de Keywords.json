@@ -1,0 +1,443 @@
+{
+  "name": "SEO - 07 Clustering de Keywords",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "seo/clustering",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        112
+      ],
+      "id": "b5db78d2-384f-4747-bdf7-fd52da50626f",
+      "webhookId": "f5afe3fe-8588-42a2-a20b-980ee1a1f65f"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  id,\n  keyword_principal,\n  search_volume,\n  competition,\n  source,\n  project_name\nFROM keywords \nWHERE status = 'pending'\n{{ $json.body?.project_name ? \"  AND project_name = '\" + $json.body.project_name.replace(/'/g, \"''\") + \"'\" : \"\" }}\nORDER BY search_volume DESC NULLS LAST\n{{ $json.body?.limit ? \"LIMIT \" + $json.body.limit : \"LIMIT 100\" }}",
+        "options": {}
+      },
+      "name": "Leer Keywords Pendientes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        112
+      ],
+      "id": "1b761806-094d-417e-a7ee-2c1c4497331d",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-keywords-exist",
+              "leftValue": "={{ $items().length }}",
+              "rightValue": "={{ 0 }}",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "name": "Check Keywords Existen",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        112
+      ],
+      "id": "de969ff3-9523-4c9b-b3c7-c9fdc0b0eab0"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Agrupar todas las keywords en un array simple\nconst keywords = $input.all().map(item => item.json.keyword_principal);\n\nreturn [{\n  json: {\n    keywords: keywords,\n    metadata: {\n      total: keywords.length,\n      source: 'postgresql'\n    }\n  }\n}];"
+      },
+      "name": "Preparar Array Keywords",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d4434948-cef7-46a7-897e-c6b6064d71ea"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construir el prompt de clustering basado en Prompt #1\nconst keywords = $json.keywords;\n\nconst prompt = `Actúa como un especialista en SEO y estrategia de contenidos.\n\nRecibirás un listado de keywords provenientes de Google Keyword Planner o ingreso manual.\n\nTu objetivo es:\n1. Analizar todas las keywords y eliminar las irrelevantes, duplicadas o con muy poca intención de búsqueda.\n2. Detectar las que tienen mayor potencial para crear contenido que atraiga tráfico orgánico.\n3. Agruparlas por temáticas basadas en similitud semántica.\n4. Dentro de cada grupo, seleccionar:\n   - Keyword principal: la más representativa y con mejor potencial.\n   - Keywords secundarias: complementos y variaciones (2-5 por cluster).\n5. Mantener el idioma original de las keywords.\n\n**Entrada:**\n${JSON.stringify({keywords: keywords}, null, 2)}\n\n**Formato de salida (JSON válido, sin markdown):**\n{\n  \"Tema_1\": {\n    \"Keyword_Principal\": \"palabra clave principal\",\n    \"Keywords_Secundarias\": [\"keyword1\", \"keyword2\", \"keyword3\"]\n  },\n  \"Tema_2\": {\n    \"Keyword_Principal\": \"palabra clave principal\",\n    \"Keywords_Secundarias\": [\"keyword4\", \"keyword5\"]\n  }\n}\n\nIMPORTANTE: Responde SOLO con el JSON, sin bloques de código markdown.`;\n\nreturn [{\n  json: {\n    prompt: prompt,\n    original_keywords: keywords\n  }\n}];"
+      },
+      "name": "Construir Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "d97cd011-89ea-49d5-833c-d9cda7d30a42"
+    },
+    {
+      "parameters": {
+        "prompt": "={{ $json.prompt }}",
+        "options": {
+          "maxTokens": 2000,
+          "temperature": 0.7
+        },
+        "requestOptions": {}
+      },
+      "name": "OpenAI",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        400,
+        0
+      ],
+      "id": "2e20c472-016e-4877-ab04-0cc51614175b",
+      "credentials": {
+        "openAiApi": {
+          "id": "IDR18P8JJHeNClOr",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse respuesta de OpenAI y convertir a array de clusters\nlet response = $json.message?.content || $json.text || $json.response;\n\n// Limpiar respuesta (remover markdown code blocks si existen)\nresponse = response.trim();\nif (response.startsWith('```json')) {\n  response = response.replace(/```json\\n?/g, '').replace(/```\\n?$/g, '');\n} else if (response.startsWith('```')) {\n  response = response.replace(/```\\n?/g, '');\n}\n\n// Parse JSON\nlet clusters;\ntry {\n  clusters = JSON.parse(response);\n} catch (error) {\n  throw new Error('Error al parsear respuesta de OpenAI: ' + error.message + '\\nRespuesta: ' + response);\n}\n\n// Convertir a array de clusters\nconst clustersArray = [];\nfor (const [temaKey, temaData] of Object.entries(clusters)) {\n  clustersArray.push({\n    cluster_name: temaKey.replace('Tema_', 'Cluster '),\n    keyword_principal: temaData.Keyword_Principal,\n    keywords_secundarias: temaData.Keywords_Secundarias\n  });\n}\n\nreturn clustersArray.map(cluster => ({\n  json: cluster\n}));"
+      },
+      "name": "Parse JSON Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        0
+      ],
+      "id": "9cc17c74-ce54-432e-853a-0bbf99e5d4ac"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar datos para insertar en PostgreSQL\nconst cluster = $json;\nconst clusterName = cluster.cluster_name;\nconst keywordPrincipal = cluster.keyword_principal;\nconst keywordsSecundarias = cluster.keywords_secundarias;\n\nreturn [{\n  json: {\n    cluster_name: clusterName,\n    keyword_principal: keywordPrincipal,\n    keywords_secundarias: JSON.stringify(keywordsSecundarias),\n    all_keywords: [keywordPrincipal, ...keywordsSecundarias]\n  }\n}];"
+      },
+      "name": "Preparar Datos Cluster",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ],
+      "id": "cb509c2e-a76f-4ae2-b564-c89a8213d023"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO keywords (\n  cluster_name,\n  keyword_principal,\n  keywords_secundarias,\n  status,\n  processed_at,\n  source\n)\nVALUES (\n  '{{ $json.cluster_name.replace(/'/g, \"''\") }}',\n  '{{ $json.keyword_principal.replace(/'/g, \"''\") }}',\n  '{{ $json.keywords_secundarias }}'::jsonb,\n  'processed',\n  CURRENT_TIMESTAMP,\n  'clustering'\n)\nON CONFLICT (keyword_principal) \nDO UPDATE SET\n  cluster_name = EXCLUDED.cluster_name,\n  keywords_secundarias = EXCLUDED.keywords_secundarias,\n  status = 'processed',\n  processed_at = CURRENT_TIMESTAMP,\n  updated_at = CURRENT_TIMESTAMP\nRETURNING id, keyword_principal, cluster_name;",
+        "options": {}
+      },
+      "name": "Insertar Cluster",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        0
+      ],
+      "id": "5ab84d8d-f0c2-4a96-99c4-12b45d106244",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH kw AS (\n  SELECT UNNEST(\n    {{ \n      ($json.all_keywords?.length || 0) > 0\n        ? \"ARRAY[\" +\n            $json.all_keywords\n              .map(k => \"'\" + String(k).replace(/'/g, \"''\") + \"'\")\n              .join(\",\") +\n          \"]\"\n        : \"ARRAY[]::text[]\"\n    }}\n  ) AS k\n)\nUPDATE keywords\nSET\n  status = 'archived',\n  updated_at = CURRENT_TIMESTAMP\nWHERE\n  keyword_principal IN (SELECT k FROM kw)\n  AND id <> '{{ $json.id }}'\n  AND status = 'pending';\n",
+        "options": {}
+      },
+      "name": "Archivar Keywords Originales",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "id": "348993f4-101d-4039-bddf-5e6d5a96b220",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "all_clusters",
+        "options": {}
+      },
+      "name": "Aggregate Clusters",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1408,
+        0
+      ],
+      "id": "44e5b3b4-0c69-4a2b-a40c-f8c7b77fa816"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lee entradas\nconst clusters = $json.all_clusters || [];\nconst allKeywords = $json.all_keywords || [];\n\n// Helpers\nfunction safeParseArray(s) {\n  try {\n    const v = JSON.parse(s);\n    return Array.isArray(v) ? v : [];\n  } catch {\n    return [];\n  }\n}\nfunction normalizeSecundarias(v) {\n  if (Array.isArray(v)) return v;\n  if (v == null) return [];\n  if (typeof v === 'string') {\n    const t = v.trim();\n    if (!t) return [];\n    // si ya es JSON ([...]) parsea; si no, intenta split por comas\n    return t.startsWith('[') ? safeParseArray(t) : t.split(',').map(x => x.trim()).filter(Boolean);\n  }\n  return [];\n}\n\n// Construye detalle de clusters\nconst details = clusters.map(c => {\n  const secundarias = normalizeSecundarias(c.keywords_secundarias);\n  return {\n    cluster_name: c.cluster_name ?? '',\n    keyword_principal: c.keyword_principal ?? '',\n    keywords_secundarias: secundarias,\n    total_keywords_secundarias: secundarias.length,\n    id: c.id ?? null,\n  };\n});\n\n// Respuesta final\nreturn [{\n  json: {\n    success: true,\n    total_keywords_processed: Array.isArray(allKeywords) ? allKeywords.length : 0,\n    total_clusters_created: details.length,\n    clusters_details: details,\n    processing_time: new Date().toISOString(),\n  }\n}];\n"
+      },
+      "name": "Preparar Respuesta Final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        0
+      ],
+      "id": "bb67c4fa-7f7b-4043-9504-381dfb4ba9ca"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "name": "Respond to Webhook Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1808,
+        0
+      ],
+      "id": "4c112688-aaf3-4afc-8e04-e3da0e9b1d11"
+    },
+    {
+      "parameters": {
+        "jsCode": "// No hay keywords pendientes\nreturn [{\n  json: {\n    status: 'info',\n    message: 'No hay keywords pendientes para procesar',\n    total_keywords_processed: 0,\n    total_clusters_created: 0,\n    clusters_details: []\n  }\n}];"
+      },
+      "name": "Mensaje No Keywords",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        208
+      ],
+      "id": "009193d4-1c08-4ba4-8530-04ca28b35d42"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "name": "Respond to Webhook No Keywords",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        208,
+        208
+      ],
+      "id": "8b63c79b-9705-4d5e-860a-983dd1f64f46"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Leer Keywords Pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Keywords Pendientes": {
+      "main": [
+        [
+          {
+            "node": "Check Keywords Existen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Keywords Existen": {
+      "main": [
+        [
+          {
+            "node": "Preparar Array Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mensaje No Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Array Keywords": {
+      "main": [
+        [
+          {
+            "node": "Construir Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construir Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse JSON Response": {
+      "main": [
+        [
+          {
+            "node": "Preparar Datos Cluster",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Datos Cluster": {
+      "main": [
+        [
+          {
+            "node": "Insertar Cluster",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar Cluster": {
+      "main": [
+        [
+          {
+            "node": "Archivar Keywords Originales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Archivar Keywords Originales": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Clusters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Clusters": {
+      "main": [
+        [
+          {
+            "node": "Preparar Respuesta Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Respuesta Final": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensaje No Keywords": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook No Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "db5056b8-099a-49bb-a18e-ab6a812e5366",
+  "meta": {
+    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+  },
+  "id": "FjUkPoOGMBpYzf9e",
+  "tags": [
+    {
+      "name": "Clustering",
+      "id": "30cdkbUwPEw3Smea",
+      "createdAt": "2025-10-20T20:22:11.088Z",
+      "updatedAt": "2025-10-20T20:22:11.088Z"
+    },
+    {
+      "createdAt": "2025-10-16T23:45:00.633Z",
+      "updatedAt": "2025-10-16T23:45:00.633Z",
+      "id": "Jyvk52dJ2wNnSCbU",
+      "name": "SEO"
+    }
+  ]
+}
