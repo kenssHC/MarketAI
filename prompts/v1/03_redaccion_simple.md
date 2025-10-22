@@ -1,4 +1,4 @@
-# Prompt #3: Redacción de Contenido SEO (Sin Investigación)
+# Prompt #3: Redacción de Contenido SEO Y GEO (Sin Investigación)
 
 **Versión:** 1.0  
 **Fecha:** 17 Octubre 2025  
@@ -8,13 +8,13 @@
 
 ## 📝 Descripción
 
-Este prompt genera artículos completos optimizados para SEO basados en ideas clasificadas como "No requiere investigación". Son contenidos evergreen que no necesitan datos actualizados.
+Este prompt genera artículos completos optimizados para SEO Y GEO basados en ideas clasificadas como "No requiere investigación". Son contenidos evergreen que no necesitan datos actualizados.
 
 ---
 
 ## 🎯 Objetivo
 
-Actúa como un redactor profesional especializado en SEO. 
+Actúa como un redactor profesional especializado en SEO Y GEO. 
 
 Recibirás una lista de ideas de contenido clasificadas previamente como **"No requiere investigación"**.  
 
@@ -22,7 +22,7 @@ Recibirás una lista de ideas de contenido clasificadas previamente como **"No r
 
 ## 📋 Tu tarea es:
 
-1. Redactar un artículo optimizado para SEO para cada idea recibida.  
+1. Redactar un artículo optimizado para SEO Y GEO para cada idea recibida.  
 2. Cada artículo debe:  
    - Usar la idea como título principal (H1).  
    - Incluir un párrafo introductorio breve y atractivo.  

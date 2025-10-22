@@ -1,6 +1,9 @@
 # 📜 Scripts de Prueba y Verificación
 
-Este directorio contiene **15 scripts organizados** para probar y verificar el módulo SEO de MarketAI.
+    ??? test_workflow10.ps1 (Investigacion Deep Research) ??? NUEVO
+# 📜 Scripts de Prueba y Verificación
+
+Este directorio contiene **16 scripts organizados** para probar y verificar el módulo SEO de MarketAI.
 
 ---
 
@@ -70,7 +73,7 @@ cd seo-module\scripts
 
 ---
 
-## 🔬 Scripts de Prueba Individual (9)
+## 🔬 Scripts de Prueba Individual (10)
 
 Cada workflow tiene su propio script de prueba detallado.
 
@@ -392,6 +395,32 @@ Ingesta (T4) → Clustering (T5) → Ideas (T6) → Redacción (T7)
 
 ---
 
+### 13. `test_workflow10.ps1` - Investigacion Deep Research ??? **NUEVO**
+**Workflow:** SEO - 10 Investigacion Deep Research  
+**Endpoint:** `/webhook/seo/investigacion`  
+**Requiere:** OpenAI o4-mini-deep-research + Migraci?n `002_add_research_reports.sql`
+
+**Prueba:**
+```powershell
+.	est_workflow10.ps1
+```
+
+**Qu? hace:**
+- Detecta ideas con categor?a "Requiere investigaci?n" y sin reporte previo
+- Llama al modelo o4-mini-deep-research para obtener datos, tendencias y fuentes
+- Normaliza la respuesta a JSON y la guarda en la tabla `research_reports`
+- Actualiza el estado de la idea a `research_ready`
+- Permite reprocesar una idea con el flag `force = true`
+- Registra tokens utilizados y costo estimado para seguimiento del consumo
+
+**Datos de entrada (JSON):**
+```json
+{
+  "limit": 1,
+  "idea_id": "opcional",
+  "force": false
+}
+```
 ## 📊 Flujo de Trabajo Recomendado
 
 ### 1️⃣ Primera vez (Verificación completa)
@@ -500,7 +529,7 @@ scripts/
 │   ├── test_e2e_completo.ps1
 │   └── test_e2e_completo_con_redaccion.ps1  ⭐ NUEVO
 │
-└── Tests Individuales (9)
+└── Tests Individuales (10)
     ├── test_workflow1.ps1 (Keywords)
     ├── test_workflow2.ps1 (Ideas)
     ├── test_workflow3.ps1 (Redacción)
@@ -512,7 +541,7 @@ scripts/
     └── test_workflow9.ps1 (Redacción Simple) ⭐ NUEVO
 ```
 
-**Total: 15 scripts organizados**
+**Total: 16 scripts organizados**
 
 ---
 

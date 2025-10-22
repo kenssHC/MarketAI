@@ -212,7 +212,7 @@ response = requests.post(
 ### **Mejores prácticas:**
 - Probar el prompt generado y ajustar si es necesario
 - Guardar el prompt junto con la imagen para referencia
-- Incluir `alt_text` descriptivo para SEO
+- Incluir `alt_text` descriptivo para SEO Y GEO
 - Almacenar en S3/GCS con nombres descriptivos
 
 ---
@@ -225,7 +225,7 @@ Junto con la imagen, guardar:
 {
   "image_url": "https://s3.../image.png",
   "visual_prompt": "el prompt usado",
-  "alt_text": "descripción SEO-friendly",
+  "alt_text": "descripción SEO-GEO-friendly",
   "generator": "dall-e-3",
   "article_id": "uuid-del-artículo",
   "created_at": "2025-10-17T15:30:00Z"

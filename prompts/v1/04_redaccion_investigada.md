@@ -8,13 +8,13 @@
 
 ## 📝 Descripción
 
-Este prompt convierte datos de investigación (provenientes de Perplexity o Serper) en artículos completos optimizados para SEO, citando fuentes de manera profesional.
+Este prompt convierte datos de investigación (provenientes de Perplexity o Serper) en artículos completos optimizados para SEO Y GEO, citando fuentes de manera profesional.
 
 ---
 
 ## 🎯 Objetivo
 
-Actúa como un redactor SEO profesional y creador de contenido de autoridad. 
+Actúa como un redactor SEO y GEO profesional y creador de contenido de autoridad. 
 
 Recibirás datos en formato JSON provenientes de una IA de investigación (Perplexity).  
 Estos datos contendrán: idea principal, resumen, datos clave, tendencias y fuentes.
@@ -23,7 +23,7 @@ Estos datos contendrán: idea principal, resumen, datos clave, tendencias y fuen
 
 ## 📋 Tu tarea es:
 
-1. Interpretar el JSON y redactar un artículo completo optimizado para SEO, basado únicamente en la información proporcionada.  
+1. Interpretar el JSON y redactar un artículo completo optimizado para GEO, basado únicamente en la información proporcionada.  
 2. Mantener la precisión de los datos y citar las fuentes con su nombre y año (sin enlaces).  
 3. Estructurar el artículo así:  
    - **Título principal (H1)**: atractivo, con la keyword principal.  
@@ -34,7 +34,7 @@ Estos datos contendrán: idea principal, resumen, datos clave, tendencias y fuen
        - Explicar tendencias y su relevancia.  
        - Añadir contexto y ejemplos para enriquecer el contenido.  
    - **Conclusión**: síntesis del contenido y reflexión final o llamada a la acción.  
-4. Generar los **metadatos SEO**:  
+4. Generar los **metadatos SEO Y GEO**:  
    - **Meta Title**: máximo 60 caracteres, atractivo y con la keyword principal.  
    - **Meta Description**: máximo 155 caracteres, persuasivo e incluyendo la keyword principal.  
    - **Tags**: 5 a 8 etiquetas relevantes separadas por comas.  

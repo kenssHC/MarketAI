@@ -14,7 +14,7 @@ Este prompt está diseñado para analizar y agrupar keywords provenientes de Goo
 
 ## 🎯 Objetivo
 
-Actúa como un especialista en SEO y estrategia de contenidos. 
+Actúa como un especialista en SEO, GEO y estrategia de contenidos. 
 
 Recibirás un listado de keywords provenientes de dos fuentes:  
 1. Resultados de un estudio en Google Keyword Planner (con volumen y competencia opcional).  
