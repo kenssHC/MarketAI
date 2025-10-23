@@ -53,3 +53,4 @@ backups/
 # Node modules (si usas n8n con custom nodes)
 node_modules/
 package-lock.json
+approval-ui/dist/

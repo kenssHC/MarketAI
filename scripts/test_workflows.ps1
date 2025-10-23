@@ -1,9 +1,9 @@
 # ============================================
-# VERIFICACION: Todos los Workflows (1-9)
+# VERIFICACION: Todos los Workflows (1-13)
 # ============================================
 
 Write-Host "`n=====================================" -ForegroundColor Cyan
-Write-Host "  VERIFICACION: 9 Workflows SEO" -ForegroundColor Cyan
+Write-Host "  VERIFICACION: 13 Workflows SEO" -ForegroundColor Cyan
 Write-Host "=====================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -13,7 +13,7 @@ $todosActivos = $true
 # ============================================
 # WORKFLOW 1: Keywords
 # ============================================
-Write-Host "[1/6] Workflow 1 - Keywords Analysis..." -ForegroundColor Yellow
+Write-Host "[1/13] Workflow 1 - Keywords Analysis..." -ForegroundColor Yellow
 
 $body1 = @{
     tema = "marketing digital"
@@ -49,7 +49,7 @@ Write-Host ""
 # ============================================
 # WORKFLOW 2: Ideas
 # ============================================
-Write-Host "[2/6] Workflow 2 - Ideas Generator..." -ForegroundColor Yellow
+Write-Host "[2/13] Workflow 2 - Ideas Generator..." -ForegroundColor Yellow
 
 $body2 = @{
     keywords = @("seo", "marketing", "contenido")
@@ -85,7 +85,7 @@ Write-Host ""
 # ============================================
 # WORKFLOW 3: Redaccion
 # ============================================
-Write-Host "[3/6] Workflow 3 - Redaccion..." -ForegroundColor Yellow
+Write-Host "[3/13] Workflow 3 - Redaccion..." -ForegroundColor Yellow
 
 $body3 = @{
     keyword_principal = "marketing digital"
@@ -122,7 +122,7 @@ Write-Host ""
 # ============================================
 # WORKFLOW 4: Formateo
 # ============================================
-Write-Host "[4/6] Workflow 4 - Formateo HTML..." -ForegroundColor Yellow
+Write-Host "[4/13] Workflow 4 - Formateo HTML..." -ForegroundColor Yellow
 
 $body4 = @{
     contenido = @{
@@ -161,7 +161,7 @@ Write-Host ""
 # ============================================
 # WORKFLOW 5: Ingesta CSV
 # ============================================
-Write-Host "[5/6] Workflow 5 - Ingesta CSV..." -ForegroundColor Yellow
+Write-Host "[5/13] Workflow 5 - Ingesta CSV..." -ForegroundColor Yellow
 
 $body5 = @{
     csv_data = "Keyword,Avg. monthly searches`ntest wf5,100"
@@ -203,7 +203,7 @@ Write-Host ""
 # ============================================
 # WORKFLOW 6: Ingesta Manual
 # ============================================
-Write-Host "[6/7] Workflow 6 - Ingesta Manual..." -ForegroundColor Yellow
+Write-Host "[6/13] Workflow 6 - Ingesta Manual..." -ForegroundColor Yellow
 
 $body6 = @{
     keywords = @("test wf6")
@@ -244,7 +244,7 @@ Write-Host ""
 # ============================================
 # WORKFLOW 7: Clustering
 # ============================================
-Write-Host "[7/7] Workflow 7 - Clustering..." -ForegroundColor Yellow
+Write-Host "[7/13] Workflow 7 - Clustering..." -ForegroundColor Yellow
 
 $body7 = @{
     limit = 10
@@ -285,7 +285,7 @@ Write-Host ""
 # ============================================
 # WORKFLOW 8: Generación de Ideas
 # ============================================
-Write-Host "[8/8] Workflow 8 - Generación de Ideas..." -ForegroundColor Yellow
+Write-Host "[8/13] Workflow 8 - Generación de Ideas..." -ForegroundColor Yellow
 
 $body8 = @{
     limit = 1
@@ -326,7 +326,7 @@ Write-Host ""
 # ============================================
 # WORKFLOW 9: Redacción Simple
 # ============================================
-Write-Host "[9/9] Workflow 9 - Redacción Simple..." -ForegroundColor Yellow
+Write-Host "[9/13] Workflow 9 - Redacción Simple..." -ForegroundColor Yellow
 
 $body9 = @{
     limit = 1
@@ -365,6 +365,164 @@ try {
 Write-Host ""
 
 # ============================================
+# WORKFLOW 10: Investigacion Deep Research
+# ============================================
+Write-Host "[10/13] Workflow 10 - Investigacion Deep Research..." -ForegroundColor Yellow
+
+$body10 = @{
+    limit = 1
+} | ConvertTo-Json
+
+try {
+    $response10 = Invoke-WebRequest `
+        -Uri "$baseUrl/seo/investigacion" `
+        -Method Post `
+        -Headers @{'Content-Type'='application/json'} `
+        -Body $body10 `
+        -UseBasicParsing `
+        -TimeoutSec 180 `
+        -ErrorAction Stop
+
+    $result10 = $response10.Content | ConvertFrom-Json
+    Write-Host "  [OK] Activo - Status: $($response10.StatusCode)" -ForegroundColor Green
+    Write-Host "      Endpoint: /webhook/seo/investigacion" -ForegroundColor Gray
+    if ($result10.total_reports_created) {
+        Write-Host "      Reports generados: $($result10.total_reports_created)" -ForegroundColor Gray
+    } elseif ($result10.message) {
+        Write-Host "      Mensaje: $($result10.message)" -ForegroundColor Gray
+    }
+} catch {
+    if ($_.Exception.Message -like "*404*") {
+        Write-Host "  [X] Inactivo (404)" -ForegroundColor Red
+        $todosActivos = $false
+    } elseif ($_.Exception.Message -like "*timeout*") {
+        Write-Host "  [~] Activo pero lento (timeout)" -ForegroundColor Yellow
+    } elseif ($_.Exception.Message -like "*API key*" -or $_.Exception.Message -like "*OpenAI*" -or $_.Exception.Message -like "*o4-mini*") {
+        Write-Host "  [~] Activo pero falta API key o acceso a o4-mini-deep-research" -ForegroundColor Yellow
+    } else {
+        Write-Host "  [?] Error: $($_.Exception.Message.Substring(0, 50))..." -ForegroundColor Yellow
+    }
+}
+
+Write-Host ""
+
+# ============================================
+# WORKFLOW 11: Redacción Investigada
+# ============================================
+Write-Host "[11/13] Workflow 11 - Redacción Investigada..." -ForegroundColor Yellow
+
+$body11 = @{
+    limit = 1
+} | ConvertTo-Json
+
+try {
+    $response11 = Invoke-WebRequest `
+        -Uri "$baseUrl/seo/redaccion/investigada" `
+        -Method Post `
+        -Headers @{'Content-Type'='application/json'} `
+        -Body $body11 `
+        -UseBasicParsing `
+        -TimeoutSec 180 `
+        -ErrorAction Stop
+
+    $result11 = $response11.Content | ConvertFrom-Json
+    Write-Host "  [OK] Activo - Status: $($response11.StatusCode)" -ForegroundColor Green
+    Write-Host "      Endpoint: /webhook/seo/redaccion/investigada" -ForegroundColor Gray
+    if ($result11.total_drafts_created) {
+        Write-Host "      Drafts creados: $($result11.total_drafts_created)" -ForegroundColor Gray
+    } elseif ($result11.message) {
+        Write-Host "      Mensaje: $($result11.message)" -ForegroundColor Gray
+    }
+} catch {
+    if ($_.Exception.Message -like "*404*") {
+        Write-Host "  [X] Inactivo (404)" -ForegroundColor Red
+        $todosActivos = $false
+    } elseif ($_.Exception.Message -like "*timeout*") {
+        Write-Host "  [~] Activo pero lento (timeout)" -ForegroundColor Yellow
+    } elseif ($_.Exception.Message -like "*API key*" -or $_.Exception.Message -like "*OpenAI*") {
+        Write-Host "  [~] Activo pero falta API key de OpenAI" -ForegroundColor Yellow
+    } else {
+        Write-Host "  [?] Error: $($_.Exception.Message.Substring(0, 50))..." -ForegroundColor Yellow
+    }
+}
+
+Write-Host ""
+
+# ============================================
+# WORKFLOW 12: Generacion de Imagenes
+# ============================================
+Write-Host "[12/13] Workflow 12 - Generacion de Imagenes..." -ForegroundColor Yellow
+
+$body12 = @{
+    limit = 0
+} | ConvertTo-Json
+
+try {
+    $response12 = Invoke-WebRequest `
+        -Uri "$baseUrl/seo/imagenes/generar" `
+        -Method Post `
+        -Headers @{'Content-Type'='application/json'} `
+        -Body $body12 `
+        -UseBasicParsing `
+        -TimeoutSec 15 `
+        -ErrorAction Stop
+
+    Write-Host "  [OK] Activo - Status: $($response12.StatusCode)" -ForegroundColor Green
+    Write-Host "      Endpoint: /webhook/seo/imagenes/generar" -ForegroundColor Gray
+} catch {
+    if ($_.Exception.Message -like "*404*") {
+        Write-Host "  [X] Inactivo (404)" -ForegroundColor Red
+        $todosActivos = $false
+    } elseif ($_.Exception.Message -like "*timeout*") {
+        Write-Host "  [~] Activo pero lento (timeout)" -ForegroundColor Yellow
+    } else {
+        Write-Host "  [!] Error: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+}
+
+Write-Host ""
+
+# ============================================
+# WORKFLOW 13: QA SEO Automatizado
+# ============================================
+Write-Host "[13/13] Workflow 13 - QA SEO..." -ForegroundColor Yellow
+
+$body13 = @{
+    limit = 0
+} | ConvertTo-Json
+
+try {
+    $response13 = Invoke-WebRequest `
+        -Uri "$baseUrl/seo/qa" `
+        -Method Post `
+        -Headers @{'Content-Type'='application/json'} `
+        -Body $body13 `
+        -UseBasicParsing `
+        -TimeoutSec 15 `
+        -ErrorAction Stop
+
+    $result13 = $response13.Content | ConvertFrom-Json
+    Write-Host "  [OK] Activo - Status: $($response13.StatusCode)" -ForegroundColor Green
+    Write-Host "      Endpoint: /webhook/seo/qa" -ForegroundColor Gray
+    if ($result13.summary) {
+        Write-Host ("      Drafts evaluados: {0}" -f $result13.summary.total) -ForegroundColor Gray
+    } elseif ($result13.message) {
+        Write-Host ("      Mensaje: {0}" -f $result13.message) -ForegroundColor Gray
+    }
+} catch {
+    if ($_.Exception.Message -like "*404*") {
+        Write-Host "  [X] Inactivo (404)" -ForegroundColor Red
+        $todosActivos = $false
+    } elseif ($_.Exception.Message -like "*timeout*") {
+        Write-Host "  [~] Activo pero lento (timeout)" -ForegroundColor Yellow
+    } else {
+        Write-Host "  [!] Error: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+}
+
+Write-Host ""
+
+# ============================================
 # RESULTADO FINAL
 # ============================================
 Write-Host "=====================================" -ForegroundColor Cyan
@@ -373,7 +531,7 @@ if ($todosActivos) {
     Write-Host " [OK] TODOS LOS WORKFLOWS ACTIVOS" -ForegroundColor Green
     Write-Host "=====================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "Todos los 9 workflows estan funcionando correctamente." -ForegroundColor Green
+    Write-Host "Todos los 13 workflows estan funcionando correctamente." -ForegroundColor Green
     Write-Host ""
     Write-Host "Endpoints disponibles:" -ForegroundColor White
     Write-Host "  1. POST /webhook/seo/keywords" -ForegroundColor Gray
@@ -385,16 +543,22 @@ if ($todosActivos) {
     Write-Host "  7. POST /webhook/seo/clustering" -ForegroundColor Gray
     Write-Host "  8. POST /webhook/seo/ideas-generation" -ForegroundColor Gray
     Write-Host "  9. POST /webhook/seo/redaccion/simple" -ForegroundColor Gray
-} else {
+    Write-Host " 10. POST /webhook/seo/investigacion" -ForegroundColor Gray
+    Write-Host " 11. POST /webhook/seo/redaccion/investigada" -ForegroundColor Gray
+    Write-Host " 12. POST /webhook/seo/imagenes/generar" -ForegroundColor Gray
+    Write-Host " 13. POST /webhook/seo/qa" -ForegroundColor Gray
+  } else {
     Write-Host " [X] ALGUNOS WORKFLOWS INACTIVOS" -ForegroundColor Red
     Write-Host "=====================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "Revisa los workflows marcados con [X] arriba." -ForegroundColor Yellow
-    Write-Host "Asegurate de que esten activados en n8n (switch verde)." -ForegroundColor Yellow
+Write-Host "Revisa los workflows marcados con [X] arriba." -ForegroundColor Yellow
+Write-Host "Asegurate de que esten activados en n8n (switch verde)." -ForegroundColor Yellow
 }
 
 Write-Host ""
-Write-Host "Nota: Los workflows 1-4, 7, 8 y 9 pueden mostrar errores de OpenAI si la API key no esta configurada," -ForegroundColor Gray
+Write-Host "Nota: Los workflows 1-4, 7, 8, 9, 10, 11, 12 y 13 pueden mostrar errores de OpenAI/Gemini si las API keys no estan configuradas," -ForegroundColor Gray
+Write-Host "Workflow 12 requiere ademas credenciales de WordPress (Auth/Nonce) para subir la imagen generada." -ForegroundColor Gray
+Write-Host "Workflow 13 puede devolver 'empty' si no hay drafts pendientes; usa el script individual con -Force para reevaluar." -ForegroundColor Gray
 Write-Host "pero eso NO significa que esten inactivos. Un 404 = inactivo, otros errores = activo." -ForegroundColor Gray
 Write-Host ""
 

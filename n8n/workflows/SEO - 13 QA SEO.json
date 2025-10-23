@@ -1,0 +1,455 @@
+{
+  "name": "SEO - 13 QA SEO",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "seo/qa",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        0
+      ],
+      "id": "9655baa9-e24f-4000-b707-ceb623fbe875",
+      "webhookId": "b1319f1e-142a-4c0c-80f2-1d3d9833fbfe"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT\n  d.id AS draft_id,\n  d.idea_id,\n  d.keyword_cluster_id,\n  d.title,\n  d.meta_title,\n  d.meta_description,\n  d.tags,\n  d.content_markdown,\n  d.word_count,\n  d.qa_passed,\n  d.qa_report,\n  d.status AS draft_status,\n  d.created_at,\n  d.updated_at,\n  i.idea_title,\n  i.categoria AS idea_categoria,\n  i.status AS idea_status,\n  k.project_name,\n  k.cluster_name,\n  k.keyword_principal,\n  k.keywords_secundarias\nFROM drafts d\nJOIN ideas i ON d.idea_id = i.id\nJOIN keywords k ON d.keyword_cluster_id = k.id\nWHERE COALESCE(d.content_markdown, '') <> ''\n  {{ $json.body?.include_published ? '' : \"AND d.status IN ('draft','review','approved')\" }}\n  {{ !$json.body?.include_passed && !$json.body?.force ? 'AND COALESCE(d.qa_passed, false) = false' : '' }}\n  {{ $json.body?.draft_id ? \"AND d.id = '\" + $json.body.draft_id.replace(/'/g, \"''\") + \"'\" : '' }}\n  {{ $json.body?.idea_id ? \"AND d.idea_id = '\" + $json.body.idea_id.replace(/'/g, \"''\") + \"'\" : '' }}\n  {{ $json.body?.keyword_cluster_id ? \"AND d.keyword_cluster_id = '\" + $json.body.keyword_cluster_id.replace(/'/g, \"''\") + \"'\" : '' }}\n  {{ $json.body?.project_name ? \"AND k.project_name = '\" + $json.body.project_name.replace(/'/g, \"''\") + \"'\" : '' }}\nORDER BY d.updated_at DESC NULLS LAST, d.created_at DESC\n{{ $json.body?.limit ? \"LIMIT \" + $json.body.limit : 'LIMIT 5' }}",
+        "options": {}
+      },
+      "name": "Seleccionar Drafts QA",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -360,
+        0
+      ],
+      "id": "be67f1b4-4221-408b-a74b-0d9c3d44eba8",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-drafts",
+              "leftValue": "={{ $items().length }}",
+              "rightValue": "=0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "name": "Hay Drafts",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -120,
+        0
+      ],
+      "id": "813c7de8-baed-42cd-834f-60b35ac4f1e0"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst requestItems = $items('Webhook', 0) || [];\nconst requestBody = requestItems[0]?.json?.body || {};\nconst now = new Date();\nconst iso = now.toISOString();\nconst baseTs = Date.now();\n\nreturn $input.all().map((item, index) => ({\n  json: {\n    ...(item.json || {}),\n    request_body: requestBody,\n    qa_requested_at: iso,\n    start_time: iso,\n    start_ts_ms: baseTs + index\n  }\n}));\n"
+      },
+      "name": "Preparar Contexto QA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        120,
+        0
+      ],
+      "id": "8a322d30-5c6d-46b6-9b2a-74fa0da75712"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction toArray(value) {\n  if (!value && value !== 0) return [];\n  if (Array.isArray(value)) {\n    return value.map(v => (v ?? '').toString().trim()).filter(Boolean);\n  }\n  if (typeof value === 'string') {\n    const trimmed = value.trim();\n    if (!trimmed) return [];\n    try {\n      const parsed = JSON.parse(trimmed);\n      if (Array.isArray(parsed)) {\n        return parsed.map(v => (v ?? '').toString().trim()).filter(Boolean);\n      }\n    } catch (error) {}\n    return trimmed\n      .replace(/^[{\\[(]/, '')\n      .replace(/[}\\])]/, '')\n      .split(/,|\n|;|\\|/)\n      .map(part => part.trim())\n      .filter(Boolean);\n  }\n  if (typeof value === 'object') {\n    return Object.values(value)\n      .map(v => (v ?? '').toString().trim())\n      .filter(Boolean);\n  }\n  return [];\n}\n\nfunction normalizeText(value) {\n  return (value ?? '')\n    .toString()\n    .toLowerCase()\n    .normalize('NFD')\n    .replace(/[̀-ͯ]/g, '')\n    .trim();\n}\n\nfunction escapeRegExp(str) {\n  return str.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');\n}\n\nfunction countOccurrences(text, phrase) {\n  if (!text || !phrase) return 0;\n  const escaped = escapeRegExp(phrase);\n  const pattern = new RegExp(`\\b${escaped.replace(/\\s+/g, '\\s+')}\\b`, 'g');\n  const matches = text.match(pattern);\n  return matches ? matches.length : 0;\n}\n\nfunction toPlain(markdown) {\n  if (!markdown) return '';\n  let text = markdown.replace(/\r/g, '');\n  text = text.replace(/```[\\s\\S]*?```/g, ' ');\n  text = text.replace(/~{3}[\\s\\S]*?~{3}/g, ' ');\n  text = text.replace(/!\\[[^\\]]*\\]\\([^)]+\\)/g, ' ');\n  text = text.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, '$1');\n  text = text.replace(/^>\\s?/gm, '');\n  text = text.replace(/[#*_`>~-]+/g, ' ');\n  return text.replace(/\\s+/g, ' ').trim();\n}\n\nconst requestBody = ($input.first()?.json?.request_body) || {};\nconst metaTitleMin = Number(requestBody.meta_title_min ?? 35);\nconst metaTitleWarnMin = Number(requestBody.meta_title_warn_min ?? 30);\nconst metaTitleMax = Number(requestBody.meta_title_max ?? 60);\nconst metaDescriptionMin = Number(requestBody.meta_description_min ?? 110);\nconst metaDescriptionWarnMin = Number(requestBody.meta_description_warn_min ?? 90);\nconst metaDescriptionMax = Number(requestBody.meta_description_max ?? 165);\nconst wordCountMin = Number(requestBody.word_count_min ?? 600);\nconst wordCountWarn = Number(requestBody.word_count_warn ?? 550);\nconst densityMin = Number(requestBody.keyword_density_min ?? 0.8);\nconst densityWarnMin = Number(requestBody.keyword_density_warn_min ?? 0.6);\nconst densityMax = Number(requestBody.keyword_density_max ?? 2.5);\nconst densityWarnMax = Number(requestBody.keyword_density_warn_max ?? 3.0);\n\nreturn $input.all().map((item) => {\n  const data = item.json || {};\n  const metaTitle = (data.meta_title || data.title || '').toString().trim();\n  const metaDescription = (data.meta_description || '').toString().trim();\n  const tags = Array.isArray(data.tags) ? data.tags : toArray(data.tags);\n  const secondaryKeywords = toArray(data.keywords_secundarias);\n  const mainKeyword = (data.keyword_principal || '').toString().trim();\n\n  let content = (data.content_markdown || '').toString().replace(/\r/g, '');\n  const fm = content.match(/^---\n([\\s\\S]*?)\n---\n([\\s\\S]*)$/);\n  if (fm) {\n    content = fm[2] || '';\n  }\n\n  const contentPlain = toPlain(content);\n  const words = contentPlain ? contentPlain.split(/\\s+/).filter(Boolean) : [];\n  const calculatedWordCount = words.length;\n  const finalWordCount = calculatedWordCount || Number(data.word_count) || 0;\n\n  const normalizedContent = normalizeText(contentPlain);\n  const firstHundred = normalizeText(words.slice(0, 100).join(' '));\n  const normalizedKeyword = normalizeText(mainKeyword);\n  const headingH1Count = (content.match(/^#\\s+/gm) || []).length;\n  const headingH2Count = (content.match(/^##\\s+/gm) || []).length;\n\n  const linkRegex = /\\[([^\\]]+)\\]\\(([^)]+)\\)/g;\n  const links = [];\n  let linkMatch;\n  while ((linkMatch = linkRegex.exec(content)) !== null) {\n    const url = (linkMatch[2] || '').trim();\n    if (!url) continue;\n    links.push(url);\n  }\n  const internalDomain = (requestBody.internal_domain || '').toString().trim().toLowerCase();\n  const totalLinks = links.length;\n  const internalLinks = links.filter(url => url.startsWith('/') || (internalDomain && url.toLowerCase().includes(internalDomain))).length;\n  const externalLinks = totalLinks - internalLinks;\n\n  const mainOccurrences = countOccurrences(normalizedContent, normalizedKeyword);\n  const keywordDensity = finalWordCount ? (mainOccurrences / finalWordCount) * 100 : 0;\n  const keywordDensityRounded = Math.round(keywordDensity * 100) / 100;\n  const keywordInIntro = firstHundred ? countOccurrences(firstHundred, normalizedKeyword) > 0 : false;\n\n  const secondaryStats = {};\n  secondaryKeywords.forEach((kw) => {\n    const norm = normalizeText(kw);\n    if (!norm) return;\n    secondaryStats[kw] = countOccurrences(normalizedContent, norm);\n  });\n\n  const checks = [];\n  function addCheck(id, label, status, message, options = {}) {\n    checks.push({\n      id,\n      label,\n      status,\n      message,\n      critical: options.critical !== false,\n      value: options.value,\n      expected: options.expected,\n      details: options.details\n    });\n  }\n\n  if (!metaTitle) {\n    addCheck('meta_title_presence', 'Meta Title', 'fail', 'Meta title vac?o.', { value: 0, expected: `${metaTitleMin}-${metaTitleMax} caracteres` });\n  } else {\n    const len = metaTitle.length;\n    if (len > metaTitleMax) {\n      addCheck('meta_title_length', 'Meta Title', 'fail', `Meta title con ${len} caracteres, excede ${metaTitleMax}.`, { value: len, expected: `${metaTitleMin}-${metaTitleMax}` });\n    } else if (len < metaTitleMin) {\n      const status = len >= metaTitleWarnMin ? 'warn' : 'fail';\n      addCheck('meta_title_length', 'Meta Title', status, `Meta title con ${len} caracteres, por debajo de ${metaTitleMin}.`, { value: len, expected: `${metaTitleMin}-${metaTitleMax}` });\n    } else {\n      addCheck('meta_title_length', 'Meta Title', 'pass', `Meta title con ${len} caracteres.`, { value: len, expected: `${metaTitleMin}-${metaTitleMax}` });\n    }\n  }\n\n  if (!metaDescription) {\n    addCheck('meta_description_presence', 'Meta Description', 'fail', 'Meta description vac?a.', { value: 0, expected: `${metaDescriptionMin}-${metaDescriptionMax} caracteres` });\n  } else {\n    const len = metaDescription.length;\n    if (len > metaDescriptionMax) {\n      addCheck('meta_description_length', 'Meta Description', 'fail', `Meta description con ${len} caracteres, excede ${metaDescriptionMax}.`, { value: len, expected: `${metaDescriptionMin}-${metaDescriptionMax}` });\n    } else if (len < metaDescriptionMin) {\n      const status = len >= metaDescriptionWarnMin ? 'warn' : 'fail';\n      addCheck('meta_description_length', 'Meta Description', status, `Meta description con ${len} caracteres, menor a ${metaDescriptionMin}.`, { value: len, expected: `${metaDescriptionMin}-${metaDescriptionMax}` });\n    } else {\n      addCheck('meta_description_length', 'Meta Description', 'pass', `Meta description con ${len} caracteres.`, { value: len, expected: `${metaDescriptionMin}-${metaDescriptionMax}` });\n    }\n  }\n\n  if (finalWordCount >= wordCountMin) {\n    addCheck('word_count', 'Word Count', 'pass', `Word count ${finalWordCount}.`, { value: finalWordCount, expected: `>= ${wordCountMin}` });\n  } else if (finalWordCount >= wordCountWarn) {\n    addCheck('word_count', 'Word Count', 'warn', `Word count ${finalWordCount}, ligeramente por debajo del objetivo ${wordCountMin}.`, { value: finalWordCount, expected: `>= ${wordCountMin}` });\n  } else {\n    addCheck('word_count', 'Word Count', 'fail', `Word count ${finalWordCount}, insuficiente para el m?nimo ${wordCountMin}.`, { value: finalWordCount, expected: `>= ${wordCountMin}` });\n  }\n\n  if (headingH1Count > 0) {\n    addCheck('heading_h1', 'Encabezados H1', 'pass', 'Se detect? al menos un H1.', { value: headingH1Count, expected: '>= 1' });\n  } else {\n    addCheck('heading_h1', 'Encabezados H1', 'fail', 'No se encontr? H1 en el contenido.', { value: headingH1Count, expected: '>= 1' });\n  }\n\n  if (headingH2Count > 0) {\n    addCheck('heading_h2', 'Encabezados H2', 'pass', 'Se detect? al menos un H2.', { value: headingH2Count, expected: '>= 1' });\n  } else {\n    addCheck('heading_h2', 'Encabezados H2', 'fail', 'No se encontr? H2 en el contenido.', { value: headingH2Count, expected: '>= 1' });\n  }\n\n  if (!normalizedKeyword) {\n    addCheck('keyword_primary', 'Keyword principal', 'warn', 'No se recibi? keyword principal para evaluar.', { critical: false });\n  } else if (keywordInIntro) {\n    addCheck('keyword_in_intro', 'Keyword en introducci?n', 'pass', 'La keyword principal aparece en los primeros 100 t?rminos.', { value: true });\n  } else {\n    addCheck('keyword_in_intro', 'Keyword en introducci?n', 'fail', 'La keyword principal no aparece en los primeros 100 t?rminos.', { value: false });\n  }\n\n  if (!normalizedKeyword) {\n    addCheck('keyword_density', 'Densidad de keyword', 'warn', 'Sin keyword principal no se puede calcular densidad.', { critical: false });\n  } else {\n    if (keywordDensityRounded >= densityMin && keywordDensityRounded <= densityMax) {\n      addCheck('keyword_density', 'Densidad de keyword', 'pass', `Densidad ${keywordDensityRounded.toFixed(2)}%.`, { value: keywordDensityRounded, expected: `${densityMin}-${densityMax}%` });\n    } else if ((keywordDensityRounded >= densityWarnMin && keywordDensityRounded < densityMin) || (keywordDensityRounded > densityMax && keywordDensityRounded <= densityWarnMax)) {\n      addCheck('keyword_density', 'Densidad de keyword', 'warn', `Densidad ${keywordDensityRounded.toFixed(2)}%, fuera del rango ideal pero aceptable.`, { value: keywordDensityRounded, expected: `${densityMin}-${densityMax}%` });\n    } else {\n      addCheck('keyword_density', 'Densidad de keyword', 'fail', `Densidad ${keywordDensityRounded.toFixed(2)}%, fuera de rango.`, { value: keywordDensityRounded, expected: `${densityMin}-${densityMax}%` });\n    }\n  }\n\n  if (mainOccurrences > 0) {\n    addCheck('keyword_occurrences', 'Ocurrencias keyword principal', 'pass', `Se encontraron ${mainOccurrences} apariciones.`, { value: mainOccurrences, expected: '> 0' });\n  } else if (normalizedKeyword) {\n    addCheck('keyword_occurrences', 'Ocurrencias keyword principal', 'fail', 'No se detectaron apariciones de la keyword principal.', { value: mainOccurrences, expected: '> 0' });\n  }\n\n  if (totalLinks > 0) {\n    addCheck('links_total', 'Total de links', 'pass', `Se encontraron ${totalLinks} enlaces.`, { value: totalLinks, expected: '>= 1', critical: false });\n  } else {\n    addCheck('links_total', 'Total de links', 'warn', 'No se detectaron enlaces en el art?culo.', { value: totalLinks, expected: '>= 1', critical: false });\n  }\n\n  if (internalLinks > 0) {\n    addCheck('links_internal', 'Links internos', 'pass', `Se detectaron ${internalLinks} enlaces internos.`, { value: internalLinks, expected: '>= 1', critical: false });\n  } else {\n    addCheck('links_internal', 'Links internos', 'warn', 'No se detectaron enlaces internos (opcional).', { value: internalLinks, expected: '>= 1', critical: false });\n  }\n\n  if (tags.length > 0) {\n    addCheck('tags_presence', 'Tags', 'pass', `Se definieron ${tags.length} tags.`, { value: tags.length, expected: '>= 1', critical: false });\n  } else {\n    addCheck('tags_presence', 'Tags', 'warn', 'No se definieron tags para el draft.', { value: tags.length, expected: '>= 1', critical: false });\n  }\n\n  const criticalFailures = checks.filter(check => check.critical !== false && check.status === 'fail');\n  const warnings = checks.filter(check => check.status === 'warn');\n  const qaPassed = criticalFailures.length === 0;\n  const qaStatus = qaPassed ? (warnings.length ? 'pass_with_warnings' : 'pass') : 'fail';\n  const summaryMessage = qaPassed ? (warnings.length ? 'QA aprobado con observaciones.' : 'QA aprobado.') : 'QA rechazado: revisar checks cr?ticos.';\n\n  const summary = {\n    total_checks: checks.length,\n    passed: checks.filter(check => check.status === 'pass').length,\n    warnings: warnings.length,\n    failed: checks.filter(check => check.status === 'fail').length,\n    critical_failed: criticalFailures.map(check => ({ id: check.id, label: check.label, message: check.message })),\n    message: summaryMessage\n  };\n\n  const stats = {\n    word_count: finalWordCount,\n    calculated_word_count: calculatedWordCount,\n    stored_word_count: Number(data.word_count) || null,\n    heading_h1: headingH1Count,\n    heading_h2: headingH2Count,\n    keyword_occurrences: mainOccurrences,\n    keyword_density: Number(keywordDensityRounded.toFixed(2)),\n    keyword_in_intro: keywordInIntro,\n    links_total: totalLinks,\n    links_internal: internalLinks,\n    links_external: externalLinks,\n    tags_total: tags.length,\n    secondary_keyword_occurrences: secondaryStats\n  };\n\n  const qaCheckedAt = new Date().toISOString();\n\n  const qaReport = {\n    generated_at: qaCheckedAt,\n    summary,\n    stats,\n    checks,\n    context: {\n      draft_id: data.draft_id,\n      idea_id: data.idea_id,\n      keyword_cluster_id: data.keyword_cluster_id,\n      keyword_principal: mainKeyword,\n      project_name: data.project_name\n    }\n  };\n\n  return {\n    json: {\n      ...data,\n      qa_report: qaReport,\n      qa_passed: qaPassed,\n      qa_status: qaStatus,\n      qa_checked_at: qaCheckedAt\n    }\n  };\n});\n"
+      },
+      "name": "Evaluar QA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        360,
+        0
+      ],
+      "id": "6872c6c6-6dc3-49ab-861a-00f88084f085"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE drafts\nSET\n  qa_passed = $2,\n  qa_report = $3::jsonb,\n  qa_checked_at = $4::timestamp,\n  updated_at = NOW()\nWHERE id = $1::uuid\nRETURNING id, qa_passed, qa_checked_at\n",
+        "values": "={{ [ $json.draft_id, $json.qa_passed, $json.qa_report, $json.qa_checked_at ] }}",
+        "options": {}
+      },
+      "name": "Actualizar Draft QA",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ],
+      "id": "5b08faaf-99f3-4b23-963a-e6938307a450",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst idx = $itemIndex;\nconst context = $items('Evaluar QA', 0)[idx]?.json || {};\nconst updatedDraft = $json || {};\n\nreturn [{\n  json: {\n    ...context,\n    updated_draft: updatedDraft\n  }\n}];\n"
+      },
+      "name": "Merge Draft QA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        0
+      ],
+      "id": "d9f8ef61-312b-4971-a38d-f00bb4498f0c"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst context = $json || {};\nconst endTime = new Date();\nconst durationMs = Math.max(0, Date.now() - (context.start_ts_ms || Date.now()));\nconst checks = context.qa_report?.checks || [];\nconst warnings = checks.filter(check => check.status === 'warn').map(check => ({ id: check.id, message: check.message }));\nconst failures = checks.filter(check => check.status === 'fail').map(check => ({ id: check.id, message: check.message }));\n\nconst jobLog = {\n  job_name: 'SEO - 13 QA SEO',\n  job_type: 'qa',\n  status: 'success',\n  related_keyword_id: context.keyword_cluster_id || null,\n  related_idea_id: context.idea_id || null,\n  related_draft_id: context.draft_id || null,\n  started_at: context.start_time || endTime.toISOString(),\n  completed_at: endTime.toISOString(),\n  duration_ms: durationMs,\n  input_data: {\n    filters: context.request_body || {},\n    draft_status: context.draft_status,\n    project_name: context.project_name,\n    keyword_principal: context.keyword_principal\n  },\n  output_data: {\n    qa_passed: context.qa_passed,\n    qa_status: context.qa_status,\n    summary: context.qa_report?.summary || {},\n    stats: context.qa_report?.stats || {},\n    warnings,\n    failures\n  }\n};\n\nreturn [{\n  json: {\n    ...context,\n    job_log: jobLog\n  }\n}];\n"
+      },
+      "name": "Preparar Job Log QA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        0
+      ],
+      "id": "59f65caa-3c01-47af-8a00-5aee7525a16b"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO jobs_log (job_name, job_type, status, related_keyword_id, related_idea_id, related_draft_id, started_at, completed_at, duration_ms, input_data, output_data)\nVALUES ($1, $2, $3, $4, $5, $6, $7::timestamp, $8::timestamp, $9, $10::jsonb, $11::jsonb)\nRETURNING id, job_name, status, created_at\n",
+        "values": "={{ [ $json.job_log.job_name, $json.job_log.job_type, $json.job_log.status, $json.job_log.related_keyword_id, $json.job_log.related_idea_id, $json.job_log.related_draft_id, $json.job_log.started_at, $json.job_log.completed_at, $json.job_log.duration_ms, $json.job_log.input_data, $json.job_log.output_data ] }}",
+        "options": {}
+      },
+      "name": "Insertar Job Log QA",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        0
+      ],
+      "id": "b57d22c0-c425-4f73-98c5-fbfb0b85d4b7",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst idx = $itemIndex;\nconst context = $items('Preparar Job Log QA', 0)[idx]?.json || {};\nconst jobLogRow = $json || {};\n\nreturn [{\n  json: {\n    ...context,\n    job_log_id: jobLogRow.id || null,\n    job_log_created_at: jobLogRow.created_at || null\n  }\n}];\n"
+      },
+      "name": "Adjuntar Job Log QA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        0
+      ],
+      "id": "b3479a8d-20c2-42db-b9d8-7c3d3baa313d"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst context = $json || {};\nconst checks = context.qa_report?.checks || [];\nconst warnings = checks.filter(check => check.status === 'warn').map(check => ({ id: check.id, message: check.message }));\nconst failures = checks.filter(check => check.status === 'fail').map(check => ({ id: check.id, message: check.message }));\n\nreturn [{\n  json: {\n    draft_id: context.draft_id,\n    idea_id: context.idea_id,\n    keyword_cluster_id: context.keyword_cluster_id,\n    cluster_name: context.cluster_name,\n    project_name: context.project_name,\n    keyword_principal: context.keyword_principal,\n    qa_passed: context.qa_passed,\n    qa_status: context.qa_status,\n    qa_checked_at: context.qa_checked_at,\n    qa_report: context.qa_report,\n    qa_summary: context.qa_report?.summary || {},\n    qa_stats: context.qa_report?.stats || {},\n    warnings,\n    failures,\n    job_log_id: context.job_log_id,\n    tags: context.tags,\n    word_count: context.qa_report?.stats?.word_count ?? context.word_count\n  }\n}];\n"
+      },
+      "name": "Preparar Resumen QA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        0
+      ],
+      "id": "3ed704a4-863d-4ce0-97c2-abce206316ec"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "processed_items",
+        "options": {}
+      },
+      "name": "Aggregate Resultados QA",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2040,
+        0
+      ],
+      "id": "1df06f4b-25a7-406b-a5b6-ee7d3ad8184d"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = $json.processed_items || [];\nconst total = items.length;\nconst totalPassed = items.filter(item => item.qa_passed).length;\nconst totalWarnings = items.filter(item => item.qa_status === 'pass_with_warnings').length;\nconst totalFailed = total - totalPassed;\n\nreturn [{\n  json: {\n    status: total ? 'success' : 'empty',\n    summary: {\n      total,\n      passed: totalPassed,\n      warnings: totalWarnings,\n      failed: totalFailed\n    },\n    drafts: items.map(item => ({\n      draft_id: item.draft_id,\n      idea_id: item.idea_id,\n      keyword_cluster_id: item.keyword_cluster_id,\n      cluster_name: item.cluster_name,\n      qa_passed: item.qa_passed,\n      qa_status: item.qa_status,\n      qa_checked_at: item.qa_checked_at,\n      qa_stats: item.qa_stats,\n      warnings: item.warnings,\n      failures: item.failures,\n      job_log_id: item.job_log_id\n    })),\n    generated_at: new Date().toISOString()\n  }\n}];\n"
+      },
+      "name": "Preparar Respuesta QA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2280,
+        0
+      ],
+      "id": "90d8cd87-80a5-4970-9f6a-b458ca17f170"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "name": "Responder Webhook QA",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2520,
+        0
+      ],
+      "id": "47b776ce-06cc-4f6a-a6be-c2e064b7f092"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nreturn [{\n  json: {\n    status: 'empty',\n    message: 'No hay drafts pendientes de QA.',\n    generated_at: new Date().toISOString()\n  }\n}];\n"
+      },
+      "name": "Preparar Respuesta Vacia",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        120,
+        -200
+      ],
+      "id": "05fe24a4-47aa-45d5-bd7b-abfca30e884d"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "name": "Responder Sin Drafts",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        360,
+        -200
+      ],
+      "id": "75104d7c-a006-401c-ab15-a40a90dfa859"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Seleccionar Drafts QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Seleccionar Drafts QA": {
+      "main": [
+        [
+          {
+            "node": "Hay Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hay Drafts": {
+      "main": [
+        [
+          {
+            "node": "Preparar Contexto QA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Respuesta Vacia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Contexto QA": {
+      "main": [
+        [
+          {
+            "node": "Evaluar QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluar QA": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Draft QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Draft QA": {
+      "main": [
+        [
+          {
+            "node": "Merge Draft QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Draft QA": {
+      "main": [
+        [
+          {
+            "node": "Preparar Job Log QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Job Log QA": {
+      "main": [
+        [
+          {
+            "node": "Insertar Job Log QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar Job Log QA": {
+      "main": [
+        [
+          {
+            "node": "Adjuntar Job Log QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Adjuntar Job Log QA": {
+      "main": [
+        [
+          {
+            "node": "Preparar Resumen QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Resumen QA": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Resultados QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Resultados QA": {
+      "main": [
+        [
+          {
+            "node": "Preparar Respuesta QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Respuesta QA": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook QA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Respuesta Vacia": {
+      "main": [
+        [
+          {
+            "node": "Responder Sin Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7921a74f-50ce-4dc2-92a5-f9c9bce89b6c",
+  "meta": {
+    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+  },
+  "id": "1cf89841-2863-44fb-b0fe-c9ba563234b0",
+  "tags": [
+    {
+      "createdAt": "2025-10-16T23:45:00.633Z",
+      "updatedAt": "2025-10-16T23:45:00.633Z",
+      "id": "Jyvk52dJ2wNnSCbU",
+      "name": "SEO"
+    },
+    {
+      "createdAt": "2025-10-22T21:45:00Z",
+      "updatedAt": "2025-10-22T21:45:00Z",
+      "id": "25d6533a-0617-43e8-8685-c4de2a9cb8e6",
+      "name": "QA"
+    }
+  ]
+}

@@ -1,10 +1,10 @@
-# MarketAI - Módulo SEO
+# MarketAI - M�dulo SEO
 
-Sistema automatizado de generación de contenido SEO con Inteligencia Artificial.
+Sistema automatizado de generaci�n de contenido SEO con Inteligencia Artificial.
 
 ---
 
-## 🚀 Inicio Rápido (5 minutos)
+## ?? Inicio R�pido (5 minutos)
 
 ### 1. Inicia los servicios
 ```powershell
@@ -16,15 +16,15 @@ docker compose up -d
 Abre http://localhost:5678 y crea tu cuenta.
 
 ### 3. Importa workflows
-Importa los 6 workflows desde `n8n/workflows/` en n8n.
+Importa los 13 workflows desde `n8n/workflows/` en n8n.
 
 ### 4. Configura credenciales PostgreSQL
-- Settings → Credentials → PostgreSQL
+- Settings ? Credentials ? PostgreSQL
 - Host: `postgres`, Database: `marketai_seo`
 - User: `marketai_user`, Password: `marketai_secure_password`
 
 ### 5. Activa workflows
-Activa los 6 workflows (switch verde).
+Activa los 13 workflows (switch verde).
 
 ### 6. Verifica
 ```powershell
@@ -33,59 +33,68 @@ cd scripts
 .\test_workflows.ps1
 ```
 
-📚 **[Guía completa](docs/quickstart.md)** | 🔧 **[Troubleshooting](docs/troubleshooting.md)**
+?? **[Gu�a completa](docs/quickstart.md)** | ?? **[Troubleshooting](docs/troubleshooting.md)**
 
 ---
 
-## 📂 Estructura del Proyecto
+## Panel de Aprobacion Editorial
+
+```powershell
+cd approval-ui
+npm install
+npm run dev
+```
+
+- SPA: http://localhost:5173 (proxy /api -> http://localhost:3001)
+- API: http://localhost:3001/api
+- Las variables APPROVAL_API_PORT y PG* se cargan desde seo-module/.env
+
+## ?? Estructura del Proyecto
 
 ```
 seo-module/
-├── docs/                    # 📚 Documentación completa
-│   ├── quickstart.md       # Guía de inicio rápido
-│   ├── workflows/          # Docs de cada workflow
-│   └── troubleshooting.md  # Solución de problemas
-├── scripts/                 # 🧪 Scripts de prueba
-│   ├── verificar_sistema.ps1
-│   ├── test_workflows.ps1
-│   ├── test_ingesta.ps1
-│   └── limpiar_datos_test.ps1
-├── n8n/                     # ⚙️ Configuración n8n
-│   ├── workflows/          # 6 workflows JSON
-│   ├── migrations/         # Migraciones SQL
-│   └── docker-compose.yml
-└── prompts/                 # 🤖 Prompts IA versionados
-    └── v1/                 # Versión 1.0
++-- docs/                    # ?? Documentaci�n completa
+�   +-- quickstart.md       # Gu�a de inicio r�pido
+�   +-- workflows/          # Docs de cada workflow
+�   +-- troubleshooting.md  # Soluci�n de problemas
++-- scripts/                 # ?? Scripts de prueba
+�   +-- verificar_sistema.ps1
+�   +-- test_workflows.ps1
+�   +-- test_ingesta.ps1
+�   +-- limpiar_datos_test.ps1
++-- n8n/                     # ?? Configuraci�n n8n
+�   +-- workflows/          # 11 workflows JSON
+�   +-- migrations/         # Migraciones SQL
+�   +-- docker-compose.yml
++-- prompts/                 # ?? Prompts IA versionados
+    +-- v1/                 # Versi�n 1.0
 ```
 
 ---
 
-## 🔄 Los 6 Workflows
+## ?Y"" Workflows Disponibles (13)
 
-| # | Workflow | Función | Endpoint |
-|---|----------|---------|----------|
-| 1 | Keywords Analysis | Analiza y genera keywords | `/webhook/seo/keywords` |
-| 2 | Ideas Generator | Genera 30 ideas de contenido | `/webhook/seo/ideas` |
-| 3 | Redacción | Redacta artículos SEO | `/webhook/seo/redaccion` |
-| 4 | Formateo HTML | Convierte JSON a HTML | `/webhook/seo/formatear` |
-| 5 | Ingesta CSV | Importa keywords desde CSV | `/webhook/seo/ingesta/csv` |
-| 6 | Ingesta Manual | Ingreso manual de keywords | `/webhook/seo/ingesta/manual` |
+| #  | Workflow | Funci??n | Endpoint |
+|----|----------|---------|----------|
+| 1  | Keywords Analysis | Analiza y genera keywords base | `/webhook/seo/keywords` |
+| 2  | Ideas Generator (v1) | Clasifica ideas generales por intenci�n | `/webhook/seo/ideas` |
+| 3  | Redacci�n (v1) | Redacta art�culos r�pidos (sin research) | `/webhook/seo/redaccion` |
+| 4  | Formateo HTML | Convierte JSON de contenido en HTML SEO | `/webhook/seo/formatear` |
+| 5  | Ingesta CSV | Importa keywords desde Google Ads | `/webhook/seo/ingesta/csv` |
+| 6  | Ingesta Manual | Ingreso manual de keywords | `/webhook/seo/ingesta/manual` |
+| 7  | Clustering de Keywords | Agrupa keywords por tem�tica usando LLM | `/webhook/seo/clustering` |
+| 8  | Generaci�n de Ideas (v2) | Crea 30 ideas por cluster y las categoriza | `/webhook/seo/ideas-generation` |
+| 9  | Redacci�n Simple | Drafts >600 palabras para ideas sin research | `/webhook/seo/redaccion/simple` |
+| 10 | Investigacion Deep Research | Normaliza research y fuentes (o4-mini) | `/webhook/seo/investigacion` |
+| 11 | Redacci�n Investigada | Redacci�n >800 palabras citando fuentes | `/webhook/seo/redaccion/investigada` |
+| 12 | Generaci�n de Im�genes | Prompt visual + imagen (Gemini) y subida a WordPress | `/webhook/seo/imagenes/generar` |
+| 13 | QA SEO Automatizado | Valida drafts con checks SEO y actualiza `qa_passed` | `/webhook/seo/qa` |
 
-📖 **[Documentación completa de workflows](docs/workflows/overview.md)**
+?Y"- **[Documentaci??n completa de workflows](docs/workflows/overview.md)**
 
 ---
-
-## 🧪 Scripts Disponibles
-
-### Verificación del Sistema
 ```powershell
-cd scripts
-.\verificar_sistema.ps1    # Verifica Docker, n8n, PostgreSQL
-```
-
-### Pruebas de Workflows
-```powershell
-.\test_workflows.ps1        # Prueba los 6 workflows
+.\test_workflows.ps1        # Prueba los 13 workflows
 .\test_ingesta.ps1          # Prueba workflows 5 y 6
 ```
 
@@ -96,59 +105,57 @@ cd scripts
 
 ---
 
-## 🗄️ Base de Datos
+## ??? Base de Datos
 
 **PostgreSQL** con 5 tablas principales:
 - `keywords` - Keywords y clusters
 - `ideas` - Ideas de contenido generadas
-- `drafts` - Artículos con metadatos SEO
+- `drafts` - Art�culos con metadatos SEO
 - `jobs_log` - Registro de ejecuciones
-- `images` - Metadatos de imágenes
+- `images` - Metadatos de im�genes
 
-📊 **[Documentación del esquema](n8n/migrations/README.md)**
+?? **[Documentaci�n del esquema](n8n/migrations/README.md)**
 
 ---
 
-## 🤖 Prompts de IA
+## ?? Prompts de IA
 
-Sistema de prompts versionados para generación de contenido:
+Sistema de prompts versionados para generaci�n de contenido:
 
 - **v1/01** - Clustering de keywords
-- **v1/02** - Generación de ideas
-- **v1/03** - Redacción simple
-- **v1/04** - Redacción investigada
-- **v1/05** - Generación de imágenes
+- **v1/02** - Generaci�n de ideas
+- **v1/03** - Redacci�n simple
+- **v1/04** - Redacci�n investigada
+- **v1/05** - Generaci�n de im�genes
 
-📝 **[Documentación de prompts](prompts/README.md)**
+?? **[Documentaci�n de prompts](prompts/README.md)**
 
 ---
 
-## 🎯 Pipeline Completo
-
+## ?? Pipeline Completo
 ```
 Ingesta Keywords (WF 5-6)
-    ↓
-Clustering IA (WF 1)
-    ↓
-Ideas (WF 2)
-    ↓
-Redacción (WF 3)
-    ↓
-Formateo HTML (WF 4)
-    ↓
-Publicación (Futuro)
+    ??? Clustering IA (WF 7)
+          ??? Generaci?n de Ideas (WF 8)
+                ??? Redacci?n simple (WF 9)
+                ??? Investigaci?n profunda (WF 10)
+                        ??? Redacci?n investigada (WF 11)
+                              ??? QA SEO automatizado (WF 13)
+                                    ??? Generaci?n de Im?genes (WF 12)
+                                          ??? Formateo HTML (WF 4)
+                                                ??? Publicaci?n / QA (roadmap)
 ```
 
 ---
 
-## 📚 Documentación
+## ?? Documentaci�n
 
-### Guías
-- **[Inicio Rápido](docs/quickstart.md)** - Configuración en 5 minutos
-- **[Troubleshooting](docs/troubleshooting.md)** - Solución de problemas comunes
+### Gu�as
+- **[Inicio R�pido](docs/quickstart.md)** - Configuraci�n en 5 minutos
+- **[Troubleshooting](docs/troubleshooting.md)** - Soluci�n de problemas comunes
 
 ### Workflows
-- **[Resumen de Workflows](docs/workflows/overview.md)** - Los 6 workflows
+- **[Resumen de Workflows](docs/workflows/overview.md)** - Los 13 workflows
 - **[Ingesta CSV](docs/workflows/ingesta-csv.md)** - Workflow 5
 - **[Ingesta Manual](docs/workflows/ingesta-manual.md)** - Workflow 6
 
@@ -157,7 +164,7 @@ Publicación (Futuro)
 
 ---
 
-## 🆘 Solución de Problemas
+## ?? Soluci�n de Problemas
 
 ### Servicios no inician
 ```powershell
@@ -165,17 +172,17 @@ docker compose restart
 ```
 
 ### Workflows devuelven 404
-- Verifica que estén **ACTIVOS** (switch verde) en n8n
+- Verifica que est�n **ACTIVOS** (switch verde) en n8n
 
 ### Workflows devuelven "Workflow was started"
-- Asegúrate de usar `/webhook/...` (no `/webhook-test/...`)
+- Aseg�rate de usar `/webhook/...` (no `/webhook-test/...`)
 - El workflow debe estar ACTIVO
 
-📖 **[Guía completa de troubleshooting](docs/troubleshooting.md)**
+?? **[Gu�a completa de troubleshooting](docs/troubleshooting.md)**
 
 ---
 
-## 🔗 Enlaces Útiles
+## ?? Enlaces �tiles
 
 - **n8n UI:** http://localhost:5678
 - **PostgreSQL:** localhost:5432
@@ -183,38 +190,37 @@ docker compose restart
 
 ---
 
-## 📊 Estado del Proyecto
+## ?? Estado del Proyecto
+**Versi??n:** v0.5  
+**?sltima actualizaci??n:** 22 Octubre 2025
 
-**Versión:** v0.4  
-**Última actualización:** 17 Octubre 2025
-
-### Completado ✅
+### Completado ?o.
 - [x] Infraestructura (Docker + n8n + PostgreSQL)
-- [x] Base de datos (5 tablas + vistas)
-- [x] Prompts IA (5 prompts v1)
-- [x] 6 Workflows funcionales
-- [x] Ingesta de Keywords (CSV + Manual)
-- [x] Documentación completa
+- [x] Base de datos (5 tablas + vistas + research_reports)
+- [x] Prompts IA v1 (clustering, ideas, redacci�n simple e investigada)
+- [x] Workflows 1-13 operativos (ingesta, clustering, ideas, investigaci�n, redacci�n e im�genes)
+- [x] Scripts de prueba actualizados (`test_workflows.ps1`, `test_workflow11.ps1`)
+- [x] Scripts de prueba actualizados (`test_workflow12.ps1`, `test_workflow13.ps1`)
+- [x] Documentaci�n funcional actualizada (README + docs/workflows)
+- [x] UI de aprobacion editorial (SPA + API interna)
 
-### En Desarrollo 🔄
-- Clustering automático con IA (Tarea 5)
-- Generación de 30 ideas (Tarea 6)
+### En Desarrollo ?Y""
+- QA SEO autom�tico sobre drafts (Tarea 11)
 
-### Planificado 📅
-- Redacción de artículos
-- Generación de imágenes
-- QA SEO automático
-- Publicación WordPress
+### Planificado ?Y".
+- Publicaci�n WordPress con metadatos completos
+- Copys para redes sociales (LinkedIn / Facebook)
+- Observabilidad: m�tricas de jobs, alertas y reintentos
 
 ---
 
-## 📝 Notas
-
-- Los workflows 1-4 requieren `OPENAI_API_KEY` configurada
+- Los workflows 1-4 y 7-13 requieren `OPENAI_API_KEY` configurada
+- El workflow 12 requiere `GEMINI_API_KEY` y credenciales v�lidas de WordPress (token, Basic Auth o nonce) para `/wp-json/wp/v2/media`
 - Los workflows 5-6 solo requieren PostgreSQL
-- Todos los datos se guardan en volúmenes de Docker
+- Todos los datos se guardan en vol�menes de Docker
 
 ---
 
 **Desarrollado para MarketAI**  
-**Documentación completa:** [docs/README.md](docs/README.md)
+**Documentaci�n completa:** [docs/README.md](docs/README.md)
+

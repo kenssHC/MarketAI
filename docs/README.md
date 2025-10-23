@@ -10,9 +10,13 @@ Bienvenido a la documentación completa del sistema de generación automática d
 - **[Guía Rápida (5 minutos)](quickstart.md)** - Configuración inicial paso a paso
 
 ### 🔄 Workflows
-- **[Resumen de Workflows](workflows/overview.md)** - Descripción de los 6 workflows
+- **[Resumen de Workflows](workflows/overview.md)** - Descripci?n de los 13 workflows
 - **[Ingesta CSV (Workflow 5)](workflows/ingesta-csv.md)** - Importar keywords desde Google Keyword Planner
 - **[Ingesta Manual (Workflow 6)](workflows/ingesta-manual.md)** - Ingreso manual de keywords
+- **[QA SEO Automatizado (Workflow 13)](workflows/qa-seo.md)** - Checks autom?ticos sobre drafts antes de publicar
+
+### ?Y"? UI & Herramientas
+- **[UI de Aprobaci?n Editorial](approval-ui.md)** - Panel SPA para revisar drafts y registrar decisiones
 
 ### 🗄️ Base de Datos
 - **[Esquema de Base de Datos](database/schema.md)** - Tablas, relaciones y migraciones

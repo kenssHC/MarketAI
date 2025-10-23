@@ -1,0 +1,647 @@
+﻿{
+  "name": "SEO - 12 Generacion de Imagenes",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "seo/imagenes/generar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        80
+      ],
+      "id": "3e47632b-3558-4f31-9bde-38ee9dd3a870",
+      "webhookId": "376bc55b-08c8-4d2c-98e8-fdccf2fd9a06"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT\\n  d.id AS draft_id,\\n  d.idea_id,\\n  d.keyword_cluster_id,\\n  d.title,\\n  d.meta_title,\\n  d.meta_description,\\n  d.tags,\\n  d.content_markdown,\\n  d.status AS draft_status,\\n  d.word_count,\\n  d.featured_image_url,\\n  d.featured_image_alt,\\n  d.featured_image_prompt,\\n  d.qa_passed,\\n  d.created_at,\\n  d.updated_at,\\n  i.idea_title,\\n  i.categoria AS idea_categoria,\\n  i.status AS idea_status,\\n  k.project_name,\\n  k.cluster_name,\\n  k.keyword_principal,\\n  k.keywords_secundarias\\nFROM drafts d\\nJOIN ideas i ON d.idea_id = i.id\\nJOIN keywords k ON d.keyword_cluster_id = k.id\\nWHERE COALESCE(d.content_markdown, '') <> ''\\n{{ $json.body?.force ? '' : \\\"  AND (d.featured_image_url IS NULL OR d.featured_image_url = '')\\\" }}\\n{{ $json.body?.include_published ? '' : \\\"  AND d.status IN ('draft','review','approved')\\\" }}\\n{{ $json.body?.draft_id ? \\\"  AND d.id = '\\\" + $json.body.draft_id.replace(/'/g, \\\"''\\\") + \\\"'\\\" : '' }}\\n{{ $json.body?.idea_id ? \\\"  AND d.idea_id = '\\\" + $json.body.idea_id.replace(/'/g, \\\"''\\\") + \\\"'\\\" : '' }}\\n{{ $json.body?.keyword_cluster_id ? \\\"  AND d.keyword_cluster_id = '\\\" + $json.body.keyword_cluster_id.replace(/'/g, \\\"''\\\") + \\\"'\\\" : '' }}\\n{{ $json.body?.project_name ? \\\"  AND k.project_name = '\\\" + $json.body.project_name.replace(/'/g, \\\"''\\\") + \\\"'\\\" : '' }}\\nORDER BY d.updated_at DESC NULLS LAST, d.created_at DESC\\n{{ $json.body?.limit ? \\\"LIMIT \\\" + $json.body.limit : \\\"LIMIT 3\\\" }}",
+        "options": {}
+      },
+      "name": "Seleccionar Drafts Imagen",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        80
+      ],
+      "id": "d71e97ee-9d83-43e9-8cef-21c132fbf36f",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-drafts",
+              "leftValue": "={{ $items().length }}",
+              "rightValue": "=0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "name": "Hay Drafts",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -192,
+        80
+      ],
+      "id": "3d84ca3d-e4cb-4a33-bc03-aca32c7c491d"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction toArray(value) {\n  if (!value) return [];\n  if (Array.isArray(value)) return value.map(String).map(v => v.trim()).filter(Boolean);\n  if (typeof value === 'string') {\n    const trimmed = value.trim();\n    if (!trimmed) return [];\n    try {\n      const parsed = JSON.parse(trimmed);\n      if (Array.isArray(parsed)) {\n        return parsed.map(String).map(v => v.trim()).filter(Boolean);\n      }\n    } catch (error) {}\n    return trimmed.split(/,|\\n|;|\\|/).map(part => part.trim()).filter(Boolean);\n  }\n  return [];\n}\n\nconst requestBody = (0).[\"Webhook\"].json.body || {};\nconst context = ;\nconst keywordsSec = toArray(context.keywords_secundarias);\nconst tags = toArray(context.tags);\nconst keywords = [context.keyword_principal, ...keywordsSec]\n  .map(value => (value || '').toString().trim())\n  .filter(Boolean)\n  .filter((value, index, self) => self.indexOf(value) === index);\n\nconst article = (context.content_markdown || '')\n  .replace(/\\r/g, '')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nconst maxLength = Number(requestBody.article_max_chars) || 8000;\nconst excerpt = article.length > maxLength ? article.slice(0, maxLength) : article;\n\nconst openAiModel = requestBody.openai_model || ('OPENAI_DEFAULT_MODEL') || 'gpt-4o-mini';\nconst geminiModel = requestBody.gemini_model || 'gemini-1.5-flash-latest';\nconst imageFormat = (requestBody.image_format || 'png').replace(/\\./g, '').toLowerCase();\n\nconst wordpressEndpointRaw = (requestBody.wordpress_endpoint || ('WORDPRESS_MEDIA_ENDPOINT') || '').toString().trim();\nif (!wordpressEndpointRaw) {\n  throw new Error('Se requiere \"wordpress_endpoint\" en el body o la variable WORDPRESS_MEDIA_ENDPOINT.');\n}\nconst wordpressEndpoint = wordpressEndpointRaw.replace(/\\/?$/, '');\nconst wordpressAuthHeader = requestBody$json$json.wordpress_auth_header || ('WORDPRESS_AUTH_HEADER') || null;\nconst wordpressNonce = requestBody$json$json.wordpress_nonce || ('WORDPRESS_NONCE') || null;\nconst wordpressTitle = requestBody.wordpress_title || context.meta_title || context.article_title || context.idea_title || '';\nconst wordpressUpdateAlt = requestBody.wordpress_update_alt === false ? false : true;\n\nconst instruction = You are a senior visual prompt designer for blog marketing teams.\\n\n  + Craft a rich, specific English prompt (max 4 sentences) for an AI image model focusing on a single scene.\\n\n  + Highlight concrete subjects, environment, lighting, mood, and artistic style. Avoid references to text or typography.;\n\nconst extra = Also produce a concise alt text in Spanish (max 140 characters) describing the resulting image for SEO.\\n\n  + Return only valid JSON using this schema: {\\n  \\\"visual_prompt\\\": string,\\n  \\\"alt_text\\\": string\\n};\n\nconst userContent = [\n  Article title: ,\n  context.meta_description ? Meta description:  : null,\n  keywords.length ? Main keywords:  : null,\n  tags.length ? Tags:  : null,\n  Word count: ,\n  Article excerpt (Spanish):\\n\n].filter(Boolean).join('\\n\\n');\n\nconst promptPayload = ${instruction}\\n\\n\\n\\n;\n\nreturn [{\n  json: {\n    draft_id: context.draft_id,\n    idea_id: context.idea_id,\n    keyword_cluster_id: context.keyword_cluster_id,\n    cluster_name: context.cluster_name,\n    idea_title: context.idea_title,\n    article_title: context.title,\n    meta_title: context.meta_title,\n    meta_description: context.meta_description,\n    main_keywords: keywords,\n    tags,\n    article_text: excerpt,\n    request_body: requestBody,\n    openai_model: openAiModel,\n    gemini_model: geminiModel,\n    image_format: imageFormat,\n    wordpress_endpoint: wordpressEndpoint,\n    wordpress_auth_header: wordpressAuthHeader,\n    wordpress_nonce: wordpressNonce,\n    wordpress_title: wordpressTitle,\n    wordpress_update_alt: wordpressUpdateAlt,\n    prompt_payload: promptPayload,\n    start_time: new Date().toISOString(),\n    start_ts_ms: Date.now()\n  }\n}];\n"
+      },
+      "name": "Preparar Contexto Imagen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        80
+      ],
+      "id": "23e898cd-dea0-4dce-a477-bbf58eef17b1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer OPENAI_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $json.openai_model }}"
+            },
+            {
+              "name": "input",
+              "value": "={{ $json.prompt_payload }}"
+            },
+            {
+              "name": "temperature",
+              "value": "={{ 0.7 }}"
+            },
+            {
+              "name": "max_output_tokens",
+              "value": "={{ 250 }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 100000
+        }
+      },
+      "name": "Generar Prompt Visual",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        80
+      ],
+      "id": "aada2278-6234-4465-abe9-0a18ca718b57"
+    },
+    {
+      "parameters": {
+        "jsCode": "const idx = $itemIndex;\nconst context = $items('Preparar Contexto Imagen', 0)[idx]?.json || {};\nconst rawOutput = ($json.output_text || '').trim() || ($json.output?.[0]?.content?.[0]?.text || '').trim();\nif (!rawOutput) {\n  throw new Error('La respuesta de OpenAI no contiene texto.');\n}\n\nlet parsed;\ntry {\n  parsed = JSON.parse(rawOutput);\n} catch (error) {\n  parsed = { visual_prompt: rawOutput };\n}\n\nconst visualPrompt = (parsed.visual_prompt || parsed.prompt || rawOutput).toString().trim();\nconst altTextCandidate = (parsed.alt_text || parsed.altText || '').toString().trim();\nconst fallbackAlt = context.meta_description ? context.meta_description.slice(0, 140) :\n  `Imagen ilustrativa de ${context.article_title || context.idea_title || 'articulo'}`;\n\nreturn [{\n  json: {\n    ...context,\n    llm_raw_output: rawOutput,\n    visual_prompt: visualPrompt,\n    alt_text: altTextCandidate || fallbackAlt,\n    llm_tokens_used: $json.usage?.total_tokens || $json.usage?.totalTokens || null\n  }\n}];"
+      },
+      "name": "Parsear Prompt Visual",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        80
+      ],
+      "id": "209d40d9-6c56-4792-ba27-f3b1e0021405"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://generativelanguage.googleapis.com/v1beta/models/' + ($json.gemini_model || 'gemini-1.5-flash-latest') + ':generateImages' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-goog-api-key",
+              "value": "={{ $json.request_body?.gemini_api_key || $env('GEMINI_API_KEY') }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonParameters": true,
+        "bodyParametersJson": "={{ { 'contents': [ { 'role': 'user', 'parts': [ { 'text': $json.visual_prompt } ] } ], 'generationConfig': { 'responseMimeType': 'image/' + ($json.image_format || 'png'), 'temperature': 0.4 } } }}",
+        "options": {
+          "timeout": 100000
+        }
+      },
+      "name": "Generar Imagen Gemini",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        80
+      ],
+      "id": "4cf4fa3c-fd35-4c95-bae4-3ed354c4c682"
+    },
+    {
+      "parameters": {
+        "jsCode": "const idx = $itemIndex;\nconst context = $items('Parsear Prompt Visual', 0)[idx]?.json || {};\nconst response = $json || {};\nconst base64Image = response.generatedImages?.[0]?.image?.base64 ||\n  response.generatedImages?.[0]?.image?.bytes ||\n  response.generatedImages?.[0]?.inlineData?.data ||\n  response.generatedImages?.[0]?.imageBytes ||\n  null;\n\nif (!base64Image) {\n  throw new Error('Gemini no devolvio imagen en base64.');\n}\n\nconst extension = context.image_format || 'png';\nconst fileName = `draft-${context.draft_id || 'unknown'}-${Date.now()}.${extension}`;\n\nreturn [{\n  json: {\n    ...context,\n    gemini_response: response,\n    image_base64: base64Image,\n    image_file_name: fileName\n  },\n  binary: {\n    data: {\n      data: base64Image,\n      mimeType: `image/${extension}`,\n      fileName\n    }\n  }\n}];"
+      },
+      "name": "Convertir Imagen a Binario",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        80
+      ],
+      "id": "f5a1f063-992d-4016-8d63-6e85a6d65a60"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE drafts\\nSET\\n  featured_image_url = $1,\\n  featured_image_alt = $2,\\n  featured_image_prompt = $3,\\n  updated_at = NOW()\\nWHERE id = $4\\nRETURNING id, featured_image_url, featured_image_alt, featured_image_prompt, updated_at",
+        "values": "={{ [ $json.image_url, $json.alt_text, $json.visual_prompt, $json.draft_id ] }}",
+        "options": {}
+      },
+      "name": "Actualizar Draft Imagen",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        80
+      ],
+      "id": "f91ba3bd-b7e4-494c-941b-69997d1256a2",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const idx = $itemIndex;\nconst context = $items('Combinar Datos WordPress', 0)[idx]?.json || {};\nconst updatedDraft = $json || {};\n\nreturn [{\n  json: {\n    ...context,\n    updated_draft: updatedDraft,\n    saved_image_url: updatedDraft.featured_image_url || context.image_url,\n    saved_image_alt: updatedDraft.featured_image_alt || context.alt_text\n  }\n}];\n"
+      },
+      "name": "Merge Draft Actualizado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        80
+      ],
+      "id": "3efb4b8c-3155-48ce-ab9e-12ebc2cfa814"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst context = ;\nconst endTime = new Date();\nconst durationMs = Math.max(0, Date.now() - (context.start_ts_ms || Date.now()));\n\nconst jobLog = {\n  job_name: 'SEO - 12 Generacion de Imagenes',\n  job_type: 'image_generation',\n  status: 'success',\n  related_keyword_id: context.keyword_cluster_id || null,\n  related_idea_id: context.idea_id || null,\n  related_draft_id: context.draft_id || null,\n  started_at: context.start_time || endTime.toISOString(),\n  completed_at: endTime.toISOString(),\n  duration_ms: durationMs,\n  input_data: {\n    article_title: context.article_title || context.meta_title,\n    main_keywords: context.main_keywords || [],\n    wordpress_media_id: context.wordpress_media_id,\n    wordpress_media_url: context.wordpress_media_url,\n    gemini_model: context.gemini_model,\n    openai_model: context.openai_model\n  },\n  output_data: {\n    image_url: context.saved_image_url,\n    alt_text: context.saved_image_alt,\n    visual_prompt: context.visual_prompt,\n    wordpress_media_id: context.wordpress_media_id,\n    llm_tokens_used: context.llm_tokens_used,\n    image_format: context.image_format\n  }\n};\n\nreturn [{\n  json: {\n    ...context,\n    job_log: jobLog\n  }\n}];\n"
+      },
+      "name": "Preparar Job Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1888,
+        80
+      ],
+      "id": "5d1f1c7b-5548-4f48-9087-dfc58f1c9a21"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO jobs_log (job_name, job_type, status, related_keyword_id, related_idea_id, related_draft_id, started_at, completed_at, duration_ms, input_data, output_data)\\nVALUES ($1, $2, $3, $4, $5, $6, $7::timestamp, $8::timestamp, $9, $10::jsonb, $11::jsonb)\\nRETURNING id, job_name, status, created_at",
+        "values": "={{ [ $json.job_log.job_name, $json.job_log.job_type, $json.job_log.status, $json.job_log.related_keyword_id, $json.job_log.related_idea_id, $json.job_log.related_draft_id, $json.job_log.started_at, $json.job_log.completed_at, $json.job_log.duration_ms, $json.job_log.input_data, $json.job_log.output_data ] }}",
+        "options": {}
+      },
+      "name": "Insertar Job Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        2096,
+        80
+      ],
+      "id": "4149b8f7-50d0-4d7d-8f0f-971973e6c53d",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const idx = $itemIndex;\nconst context = $items('Preparar Job Log', 0)[idx]?.json || {};\nconst jobLogRow = $json || {};\n\nreturn [{\n  json: {\n    ...context,\n    job_log_id: jobLogRow.id || null,\n    job_log_created_at: jobLogRow.created_at || null\n  }\n}];"
+      },
+      "name": "Preparar Resumen Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        80
+      ],
+      "id": "39159cf5-cb9f-45f0-ba0f-6a2a5a018dab"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "processed_items",
+        "options": {}
+      },
+      "name": "Aggregate Resultados",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2512,
+        80
+      ],
+      "id": "4dddf36b-5b68-4e1d-894d-fb7fd5feeea5"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = .processed_items || [];\nreturn [{\n  json: {\n    status: 'success',\n    total_drafts_processed: items.length,\n    total_images_created: items.length,\n    drafts: items.map(item => ({\n      draft_id: item.draft_id,\n      idea_id: item.idea_id,\n      cluster_name: item.cluster_name,\n      media_id: item.wordpress_media_id,\n      image_url: item.saved_image_url,\n      alt_text: item.saved_image_alt,\n      visual_prompt: item.visual_prompt,\n      job_log_id: item.job_log_id,\n      wordpress_media_url: item.wordpress_media_url || item.saved_image_url\n    })),\n    generated_at: new Date().toISOString()\n  }\n}];\n"
+      },
+      "name": "Preparar Respuesta Final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2720,
+        80
+      ],
+      "id": "20d996b8-84c7-4b8c-8b7e-b186a2a52ff4"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "name": "Responder Webhook Exito",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2928,
+        80
+      ],
+      "id": "54f9c0ba-58f4-4a27-b54e-081d245032e8"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    status: 'info',\n    message: 'No hay drafts pendientes de imagen.',\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Preparar Respuesta Vacia",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        -96
+      ],
+      "id": "7d0c5356-6aeb-4f4f-a142-6f7333c57530"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "name": "Responder Sin Drafts",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        224,
+        -96
+      ],
+      "id": "63e1e4bd-5f15-4acb-9c60-52103f97412e"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.wordpress_endpoint }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "={{ 'image/' + ($json.image_format || 'png') }}"
+            },
+            {
+              "name": "Content-Disposition",
+              "value": "={{ 'attachment; filename=\"' + $json$json.image_file_name + '\"' }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $json$json.wordpress_auth_header || '' }}"
+            },
+            {
+              "name": "X-WP-Nonce",
+              "value": "={{ $json$json.wordpress_nonce || '' }}"
+            }
+          ]
+        },
+        "sendBinaryData": true,
+        "binaryPropertyName": "data",
+        "options": {
+          "timeout": 100000,
+          "bodyContentType": "raw"
+        }
+      },
+      "name": "Subir Imagen WordPress",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1056,
+        80
+      ],
+      "id": "d9474896-6318-48fc-953b-a21f06ea5e49"
+    },
+    {
+      "parameters": {
+        "jsCode": "const idx = $itemIndex;\nconst context = $items('Convertir Imagen a Binario', 0)[idx]?.json || {};\nconst response = $json || {};\n\nconst mediaId = response.id ?? response.data?.id ?? null;\nconst sourceUrl = response.source_url || response.guid?.rendered || response.media_details?.sizes?.full?.source_url || null;\n\nif (!sourceUrl) {\n  throw new Error('WordPress no devolvio source_url al subir la imagen.');\n}\n\nreturn [{\n  json: {\n    ...context,\n    wordpress_response: response,\n    wordpress_media_id: mediaId,\n    wordpress_media_url: sourceUrl,\n    image_url: sourceUrl\n  }\n}];\n"
+      },
+      "name": "Combinar Datos WordPress",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        80
+      ],
+      "id": "344758ef-9d39-4f81-90c8-2405b08fd218"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Seleccionar Drafts Imagen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Seleccionar Drafts Imagen": {
+      "main": [
+        [
+          {
+            "node": "Hay Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hay Drafts": {
+      "main": [
+        [
+          {
+            "node": "Preparar Contexto Imagen",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Preparar Respuesta Vacia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Contexto Imagen": {
+      "main": [
+        [
+          {
+            "node": "Generar Prompt Visual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Prompt Visual": {
+      "main": [
+        [
+          {
+            "node": "Parsear Prompt Visual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear Prompt Visual": {
+      "main": [
+        [
+          {
+            "node": "Generar Imagen Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Imagen Gemini": {
+      "main": [
+        [
+          {
+            "node": "Convertir Imagen a Binario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convertir Imagen a Binario": {
+      "main": [
+        [
+          {
+            "node": "Subir Imagen WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Draft Imagen": {
+      "main": [
+        [
+          {
+            "node": "Merge Draft Actualizado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Draft Actualizado": {
+      "main": [
+        [
+          {
+            "node": "Preparar Job Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Job Log": {
+      "main": [
+        [
+          {
+            "node": "Insertar Job Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar Job Log": {
+      "main": [
+        [
+          {
+            "node": "Preparar Resumen Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Resumen Draft": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Resultados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Resultados": {
+      "main": [
+        [
+          {
+            "node": "Preparar Respuesta Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Respuesta Final": {
+      "main": [
+        [
+          {
+            "node": "Responder Webhook Exito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Respuesta Vacia": {
+      "main": [
+        [
+          {
+            "node": "Responder Sin Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Subir Imagen WordPress": {
+      "main": [
+        [
+          {
+            "node": "Combinar Datos WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combinar Datos WordPress": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Draft Imagen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7f92fb56-8bf7-42cb-a3ba-b08d2c018f0d",
+  "meta": {
+    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+  },
+  "id": "6f22cf9c-4741-45a3-bb20-e25995279c4e",
+  "tags": [
+    {
+      "createdAt": "2025-10-16T23:45:00.633Z",
+      "updatedAt": "2025-10-16T23:45:00.633Z",
+      "id": "Jyvk52dJ2wNnSCbU",
+      "name": "SEO"
+    },
+    {
+      "createdAt": "2025-10-22T04:45:00.000Z",
+      "updatedAt": "2025-10-22T04:45:00.000Z",
+      "id": "8a2fb5b9-837b-4a92-aa50-258066b3bad5",
+      "name": "Imagenes"
+    }
+  ]
+}
+
+
+
+
+
+
+

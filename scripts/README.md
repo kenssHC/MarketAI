@@ -1,9 +1,12 @@
 # 📜 Scripts de Prueba y Verificación
 
     ??? test_workflow10.ps1 (Investigacion Deep Research) ??? NUEVO
+    ??? test_workflow11.ps1 (Redaccion Investigada) ??? NUEVO
+    ??? test_workflow12.ps1 (Generacion de Imagenes) ??? NUEVO
+    ??? test_workflow13.ps1 (QA SEO Automatizado) ??? NUEVO
 # 📜 Scripts de Prueba y Verificación
 
-Este directorio contiene **16 scripts organizados** para probar y verificar el módulo SEO de MarketAI.
+Este directorio contiene **19 scripts organizados** para probar y verificar el módulo SEO de MarketAI.
 
 ---
 
@@ -73,7 +76,7 @@ cd seo-module\scripts
 
 ---
 
-## 🔬 Scripts de Prueba Individual (10)
+## 🔬 Scripts de Prueba Individual (12)
 
 Cada workflow tiene su propio script de prueba detallado.
 
@@ -402,7 +405,7 @@ Ingesta (T4) → Clustering (T5) → Ideas (T6) → Redacción (T7)
 
 **Prueba:**
 ```powershell
-.	est_workflow10.ps1
+.\test_workflow10.ps1
 ```
 
 **Qu? hace:**
@@ -421,6 +424,90 @@ Ingesta (T4) → Clustering (T5) → Ideas (T6) → Redacción (T7)
   "force": false
 }
 ```
+---
+
+### 14. `test_workflow11.ps1` - Redaccion Investigada ??? **NUEVO**
+**Workflow:** SEO - 11 Redaccion Investigada  
+**Endpoint:** `/webhook/seo/redaccion/investigada`  
+**Requiere:** PostgreSQL + OpenAI API Key + research_reports completados
+
+**Prueba:**
+```powershell
+.\test_workflow11.ps1
+```
+
+**Que hace:**
+- Lee ideas con categoria "Requiere investigacion" en estado `research_ready`
+- Consume los `research_reports` generados por el Workflow 10
+- Redacta articulos >800 palabras citando fuentes y genera metadatos SEO completos
+- Guarda el markdown en la tabla `drafts` (campos `research_data` y `research_sources`)
+- Actualiza la idea a `draft_created` y registra la ejecucion en `jobs_log`
+
+**Datos de entrada (JSON):**
+```json
+{
+  "idea_id": "uuid",   // Opcional: idea especifica
+  "limit": 1,          // Opcional: cantidad de ideas a procesar (default: 1)
+  "force": false       // true para regenerar aunque exista draft previo
+}
+```
+
+### 15. `test_workflow12.ps1` - Generacion de Imagenes ??? NUEVO
+**Workflow:** SEO - 12 Generacion de Imagenes  
+**Endpoint:** `/webhook/seo/imagenes/generar`  
+**Requiere:** OpenAI API Key + `GEMINI_API_KEY` + credenciales de WordPress para `/wp-json/wp/v2/media`
+
+**Prueba:**
+```powershell
+.\test_workflow12.ps1 -Limit 1 -VerboseBody `
+  -WordpressEndpoint "https://tu-sitio/wp-json/wp/v2/media" `
+  -WordpressAuthHeader "Basic TUAPPPASS"
+```
+
+**Que hace:**
+- Lee drafts sin `featured_image_url` (producidos por WF11)
+- Genera prompt visual EN + alt_text ES usando OpenAI
+- Solicita una imagen a Gemini y la publica como medio en WordPress
+- Actualiza la tabla `drafts` con URL, alt y prompt
+- Registra la ejecución en `jobs_log` (`job_type = image_generation`)
+
+**Datos de entrada (JSON):**
+```json
+{
+  "limit": 1,
+  "draft_id": "opcional",
+  "force": false,
+  "wordpress_endpoint": "https://tu-sitio/wp-json/wp/v2/media",
+  "wordpress_auth_header": "Basic ...",
+  "wordpress_nonce": "opcional"
+}
+```
+
+
+---
+
+### 16. `test_workflow13.ps1` - QA SEO Automatizado ??? NUEVO
+**Workflow:** SEO - 13 QA SEO  
+**Endpoint:** `/webhook/seo/qa`  
+**Requiere:** PostgreSQL (sin LLM adicional, drafts generados)
+
+**Prueba:**
+```powershell
+.\test_workflow13.ps1 -Limit 1 -VerboseReport
+```
+
+**Que hace:**
+- Eval?a drafts pendientes de QA (`qa_passed = false`) salvo que uses `-Force`
+- Calcula m?tricas clave (meta title/description, densidad, encabezados, enlaces)
+- Actualiza `drafts.qa_report`, `qa_passed` y `qa_checked_at`
+- Registra la ejecuci?n en `jobs_log` (`job_type = qa`)
+- Devuelve un resumen JSON con advertencias y fallas cr?ticas
+
+**Notas:**
+- Usa `-Force` para forzar reevaluaci?n de drafts ya aprobados.
+- `-InternalDomain` ayuda a marcar enlaces internos adicionales.
+- Una respuesta `status = empty` indica que no hay drafts pendientes, no un error.
+
 ## 📊 Flujo de Trabajo Recomendado
 
 ### 1️⃣ Primera vez (Verificación completa)
@@ -541,7 +628,7 @@ scripts/
     └── test_workflow9.ps1 (Redacción Simple) ⭐ NUEVO
 ```
 
-**Total: 16 scripts organizados**
+**Total: 18 scripts organizados**
 
 ---
 

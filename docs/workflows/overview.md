@@ -1,69 +1,54 @@
-# 🔄 Resumen de Workflows
+﻿# Resumen de Workflows
 
-El módulo SEO cuenta con 6 workflows que automatizan el proceso completo de creación de contenido optimizado.
+El módulo SEO cuenta con 13 workflows activos que automatizan la cadena de valor desde la ingesta de keywords hasta la publicación del contenido en WordPress.
 
 ---
 
-## 📊 Los 6 Workflows
+## Lista de Workflows
 
 | # | Nombre | Función | Estado | Endpoint |
 |---|--------|---------|--------|----------|
-| 1 | Keywords Analysis | Analiza y genera keywords con IA | Listo | `/webhook/seo/keywords` |
-| 2 | Ideas Generator | Genera 30 ideas de contenido | Listo | `/webhook/seo/ideas` |
-| 3 | Redacción | Redacta artículos optimizados | Listo | `/webhook/seo/redaccion` |
-| 4 | Formateo HTML | Convierte JSON a HTML SEO | Listo | `/webhook/seo/formatear` |
-| 5 | Ingesta CSV | Importa keywords desde CSV | Listo | `/webhook/seo/ingesta/csv` |
-| 6 | Ingesta Manual | Ingreso manual de keywords | Listo | `/webhook/seo/ingesta/manual` |
+| 1 | Keywords Analysis | Genera keywords base desde tema/nicho | Listo | `/webhook/seo/keywords` |
+| 2 | Ideas Generator (v1) | Clasifica ideas generales por intención | Listo | `/webhook/seo/ideas` |
+| 3 | Redacción (v1) | Redacta artículos rápidos (sin investigación) | Listo | `/webhook/seo/redaccion` |
+| 4 | Formateo HTML | Convierte estructuras JSON a HTML SEO | Listo | `/webhook/seo/formatear` |
+| 5 | Ingesta CSV | Importa keywords desde Google Ads CSV | Listo | `/webhook/seo/ingesta/csv` |
+| 6 | Ingesta Manual | Alta manual de keywords | Listo | `/webhook/seo/ingesta/manual` |
+| 7 | Clustering de Keywords | Agrupa keywords por proximidad semántica (LLM) | Listo | `/webhook/seo/clustering` |
+| 8 | Generación de Ideas (v2) | Produce 30 ideas por cluster y las categoriza | Listo | `/webhook/seo/ideas-generation` |
+| 9 | Redacción Simple | Redacción >600 palabras para ideas sin investigación | Listo | `/webhook/seo/redaccion/simple` |
+|10 | Investigación Deep Research | Normaliza research con o4-mini y guarda sources | Listo | `/webhook/seo/investigacion` |
+|11 | Redacción Investigada | Redacción >800 palabras citando fuentes verificadas | Listo | `/webhook/seo/redaccion/investigada` |
+|12 | Generación de Imágenes | Prompt visual + imagen (Gemini) y subida a WordPress | Listo | `/webhook/seo/imagenes/generar` |
+|13 | QA SEO Automatizado | Revisa drafts y genera reporte SEO con bandera de calidad | Listo | `/webhook/seo/qa` |
 
 ---
 
-## 🔄 Pipeline Completo
+## Pipeline Actual
 
 ```
-┌──────────────────┐
-│  Ingesta         │  WF 5: CSV de Google Ads
-│  Keywords        │  WF 6: Ingreso manual
-└────────┬─────────┘
-         │
-         ↓
-┌──────────────────┐
-│  Clustering      │  WF 1: Agrupa keywords
-│  con IA          │  por temáticas
-└────────┬─────────┘
-         │
-         ↓
-┌──────────────────┐
-│  Generación      │  WF 2: 30 ideas de
-│  de Ideas        │  contenido por cluster
-└────────┬─────────┘
-         │
-         ↓
-┌──────────────────┐
-│  Redacción       │  WF 3: Artículo SEO
-│  de Contenido    │  optimizado
-└────────┬─────────┘
-         │
-         ↓
-┌──────────────────┐
-│  Formateo        │  WF 4: HTML con
-│  HTML            │  etiquetas semánticas
-└────────┬─────────┘
-         │
-         ↓
-┌──────────────────┐
-│  Publicación     │  WordPress
-│  (Futuro)        │  automática
-└──────────────────┘
+Ingesta de Keywords (WF5/WF6)
+        └─ Clustering IA (WF7)
+              └─ Generación de Ideas por cluster (WF8)
+                    ├─ Redacción simple (WF9)
+                    └─ Investigación profunda (WF10)
+                            └─ Redacción investigada (WF11)
+                                    └─ QA SEO Automatizado (WF13)
+                                        └─ Generación de Imágenes (WF12)
+                                            └─ Formateo HTML (WF4)
+                                                    └─ Publicación / QA (WFs futuros)
 ```
+
+Los workflows 1-3 brindan compatibilidad con la versión inicial del módulo, pero la ruta recomendada para producción sigue la secuencia 5 → 7 → 8 → (9 o 10+11) → 12 → 4.
 
 ---
 
-## 📝 Descripción Detallada
+## Descripción Detallada
 
 ### Workflow 1: Keywords Analysis
-**Función:** Analiza un tema y genera palabras clave relevantes con intención de búsqueda.
+Genera keywords base a partir de tema, nicho e intención de búsqueda. Utiliza OpenAI y devuelve volumen estimado y dificultad relativa.
 
-**Input:**
+**Input ejemplo**
 ```json
 {
   "tema": "marketing digital",
@@ -72,132 +57,122 @@ El módulo SEO cuenta con 6 workflows que automatizan el proceso completo de cre
 }
 ```
 
-**Output:** Lista de keywords con volumen estimado y dificultad.
+---
 
-**Prompt usado:** `prompts/v1/01_keywords_clustering.md`
+### Workflow 2: Ideas Generator (v1)
+Clasifica ideas generales en función de las keywords iniciales (útil para validación rápida o brainstorming manual).
 
 ---
 
-### Workflow 2: Ideas Generator
-**Función:** Genera y clasifica ideas de contenido basadas en keywords.
-
-**Input:**
-```json
-{
-  "keywords": ["seo", "marketing", "contenido"],
-  "tema": "marketing digital",
-  "objetivo": "generar trafico"
-}
-```
-
-**Output:** 30 ideas organizadas por categorías con relevancia.
-
-**Prompt usado:** `prompts/v1/02_ideas_generator.md`
-
----
-
-### Workflow 3: Redacción
-**Función:** Genera artículos completos optimizados para SEO.
-
-**Input:**
-```json
-{
-  "keyword_principal": "marketing digital",
-  "keywords_secundarias": ["seo", "contenido"],
-  "tono": "profesional",
-  "extension": 500
-}
-```
-
-**Output:** Artículo con título, meta descripción y secciones estructuradas.
-
-**Prompts usados:**
-- `prompts/v1/03_redaccion_simple.md` (sin investigación)
-- `prompts/v1/04_redaccion_investigada.md` (con fuentes)
+### Workflow 3: Redacción (v1)
+Redacta artículos rápidos (~500 palabras) sin investigación previa. Usa `prompts/v1/03_redaccion_simple.md`.
 
 ---
 
 ### Workflow 4: Formateo HTML
-**Función:** Convierte el JSON del artículo en HTML optimizado.
-
-**Input:**
-```json
-{
-  "contenido": {
-    "titulo": "...",
-    "secciones": [...]
-  }
-}
-```
-
-**Output:** HTML con etiquetas semánticas y estadísticas.
-
-**Prompt usado:** `prompts/v1/04_redaccion_investigada.md`
+Recibe un JSON estructurado de contenido y produce HTML con semántica SEO. Ideal para consumir los drafts generados en WF9 o WF11.
 
 ---
 
 ### Workflow 5: Ingesta CSV
-**Función:** Importa keywords desde CSV de Google Keyword Planner.
+Importa keywords desde Google Keyword Planner. Cuenta con validaciones de formato y escritura en PostgreSQL.
 
-**Documentación completa:** [ingesta-csv.md](ingesta-csv.md)
-
-**Endpoint:** `POST /webhook/seo/ingesta/csv`
+Documentación específica: [ingesta-csv.md](ingesta-csv.md)
 
 ---
 
 ### Workflow 6: Ingesta Manual
-**Función:** Permite ingresar keywords manualmente.
+Permite ingresar keywords manualmente para escenarios rápidos o pruebas.
 
-**Documentación completa:** [ingesta-manual.md](ingesta-manual.md)
-
-**Endpoint:** `POST /webhook/seo/ingesta/manual`
+Documentación específica: [ingesta-manual.md](ingesta-manual.md)
 
 ---
 
-## 🎯 Workflows por Estado
-
-### ✅ Completados y Funcionales (6/6)
-- Workflow 1: Keywords Analysis
-- Workflow 2: Ideas Generator
-- Workflow 3: Redacción
-- Workflow 4: Formateo HTML
-- Workflow 5: Ingesta CSV
-- Workflow 6: Ingesta Manual
-
-### 🔄 En Desarrollo (0)
-Ninguno actualmente
-
-### 📅 Planificados
-- Workflow 7: Generación de imágenes (DALL-E/Leonardo)
-- Workflow 8: QA SEO automático
-- Workflow 9: Publicación WordPress
-- Workflow 10: Copys para redes sociales
+### Workflow 7: Clustering de Keywords
+Lee keywords pendientes y agrupa por afinidad semántica utilizando LLM y el prompt oficial `prompts/v1/01_keywords_clustering.md`. Persiste clusters y archiva keywords originales.
 
 ---
 
-## 🧪 Cómo Probar
+### Workflow 8: Generación de Ideas (v2)
+Genera 30 ideas por cluster, etiquetando cada una como "Requiere investigación" o "No requiere investigación" según el prompt `prompts/v1/02_ideas_generator.md`. Las ideas quedan registradas en la tabla `ideas`.
 
-**Verifica todos los workflows:**
+---
+
+### Workflow 9: Redacción Simple
+Procesa ideas que **no requieren investigación** y genera drafts en Markdown (>600 palabras) con metadatos SEO, calculando word count automáticamente. Usa `prompts/v1/03_redaccion_simple.md`.
+
+---
+
+### Workflow 10: Investigación Deep Research
+Consume ideas "Requiere investigación", llama al modelo `o4-mini-deep-research`, normaliza el JSON (datos, fuentes, insights) y lo almacena en `research_reports`. Cambia la idea a `research_ready`.
+
+---
+
+### Workflow 11: Redacción Investigada
+Convierte los `research_reports` en artículos >800 palabras citando fuentes, guarda el draft en `drafts` con `research_data` y `research_sources`, actualiza idea a `draft_created` y registra la ejecución en `jobs_log`.
+
+Prompt principal: `prompts/v1/04_redaccion_investigada.md`
+
+---
+
+### Workflow 12: Generación de Imágenes
+Convierte drafts listos de WF11 en prompts visuales, genera imágenes con Gemini y publica el medio en WordPress, actualizando el draft y registrando la ejecución en `jobs_log`.
+
+Documentación específica: [generacion-imagenes.md](generacion-imagenes.md)
+
+### Workflow 13: QA SEO Automatizado
+Evalúa los drafts generados (WF9/WF11) aplicando checks de calidad SEO: longitud de metadatos, densidad de keywords, encabezados, enlaces y presencia en la introducción. Genera un `qa_report` detallado, actualiza `qa_passed` y registra el resultado en `jobs_log`.
+
+**Entradas principales**
+```json
+{
+  "limit": 3,
+  "force": false,
+  "draft_id": "opcional"
+}
+```
+
+**Salidas clave**
+- `qa_passed` con estados `pass`, `pass_with_warnings` o `fail`.
+- `qa_report.summary` con los checks críticos y advertencias.
+- Registro en `jobs_log` (`job_type = qa`) con métricas y recomendaciones.
+
+---
+
+## Workflows por Estado
+
+### ● Completados (13/13)
+- WF1 – Keywords Analysis
+- WF2 – Ideas Generator (v1)
+- WF3 – Redacción (v1)
+- WF4 – Formateo HTML
+- WF5 – Ingesta CSV
+- WF6 – Ingesta Manual
+- WF7 – Clustering de Keywords
+- WF8 – Generación de Ideas (v2)
+- WF9 – Redacción Simple
+- WF10 – Investigación Deep Research
+- WF11 – Redacción Investigada
+- WF12 – Generación de Imágenes
+
+### ● Próximos (roadmap)
+- WF13 – QA SEO automatizado
+- WF14 – UI de aprobación / revisión humana
+- WF15 – Publicación WordPress
+- WF16 – Copys para redes sociales
+
+---
+
+## Cómo Probar Rápido
+
 ```powershell
 cd scripts
-.\test_workflows.ps1
-```
-
-**Prueba workflows de ingesta:**
-```powershell
-.\test_ingesta.ps1
+.\test_workflows.ps1           # Salud general de los 13 workflows
+.\test_workflow11.ps1          # Redacción investigada punta a punta
+.\test_workflow12.ps1          # Generación de imágenes + subida a WordPress
+.\test_e2e_completo_con_redaccion.ps1  # Pipeline completo (ingesta → redacción)
 ```
 
 ---
 
-## 📚 Documentación Relacionada
-
-- [Ingesta CSV](ingesta-csv.md) - Workflow 5 detallado
-- [Ingesta Manual](ingesta-manual.md) - Workflow 6 detallado
-- [Troubleshooting](../troubleshooting.md) - Solución de problemas
-- [Quickstart](../quickstart.md) - Configuración inicial
-
----
-
-**Última actualización:** 17 Octubre 2025
-
+**Última actualización:** 22 Octubre 2025

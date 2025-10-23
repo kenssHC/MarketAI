@@ -1,0 +1,557 @@
+{
+  "name": "SEO - 11 Redaccion Investigada",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "seo/redaccion/investigada",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        112
+      ],
+      "id": "60a474f2-0d5e-4082-8d3d-6465ffb7b14e",
+      "webhookId": "b2b4f491-9a58-40c0-b0d0-72da996854ff"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=WITH latest AS (\n  SELECT DISTINCT ON (rr.idea_id)\n    rr.id,\n    rr.idea_id,\n    rr.keyword_cluster_id,\n    rr.summary,\n    rr.key_insights,\n    rr.key_statistics,\n    rr.trends,\n    rr.sources,\n    rr.research_json,\n    rr.tokens_used,\n    rr.cost_estimate,\n    rr.created_at\n  FROM research_reports rr\n  WHERE rr.status = 'completed'\n  ORDER BY rr.idea_id, rr.created_at DESC\n)\nSELECT\n  i.id AS idea_id,\n  i.idea_title,\n  i.categoria,\n  i.status AS idea_status,\n  i.keyword_cluster_id,\n  i.estimated_word_count,\n  i.priority,\n  i.description,\n  k.cluster_name,\n  k.keyword_principal,\n  k.keywords_secundarias,\n  k.project_name,\n  latest.id AS research_report_id,\n  latest.summary,\n  latest.key_insights,\n  latest.key_statistics,\n  latest.trends,\n  latest.sources,\n  latest.research_json,\n  latest.tokens_used,\n  latest.cost_estimate,\n  latest.created_at AS research_created_at\nFROM latest\nJOIN ideas i ON latest.idea_id = i.id\nJOIN keywords k ON i.keyword_cluster_id = k.id\nLEFT JOIN drafts d ON d.idea_id = i.id AND d.status NOT IN ('rejected')\nWHERE i.categoria ILIKE 'Requiere%'\n  AND i.status IN ('research_ready','research_completed','in_progress','pending')\n{{ $json.body && $json.body.idea_id\n    ? \"  AND i.id = '\" + $json.body.idea_id.replace(/'/g, \"''\") + \"'\"\n    : \"\" }}\n{{ $json.body && $json.body.keyword_cluster_id\n    ? \"  AND i.keyword_cluster_id = '\" + $json.body.keyword_cluster_id.replace(/'/g, \"''\") + \"'\"\n    : \"\" }}\n{{ $json.body && $json.body.project_name\n    ? \"  AND k.project_name = '\" + $json.body.project_name.replace(/'/g, \"''\") + \"'\"\n    : \"\" }}\n{{ $json.body && $json.body.force ? \"\" : \"  AND d.id IS NULL\" }}\nORDER BY i.priority DESC NULLS LAST, latest.created_at ASC\n{{ $json.body && $json.body.limit\n    ? \"LIMIT \" + $json.body.limit\n    : \"LIMIT 3\" }}",
+        "options": {}
+      },
+      "name": "Leer Investigacion Lista",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        112
+      ],
+      "id": "7af2d1fd-dc26-4449-b710-5a7c61cfdc50",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-research-exists",
+              "leftValue": "={{ $items().length }}",
+              "rightValue": "=0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "name": "Tiene Investigacion",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        112
+      ],
+      "id": "55eed8df-56f8-4363-b4a4-ad775f396276"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalizadores auxiliares\\nfunction normalizeArray(value) {\\n  if (!value) return [];\\n  if (Array.isArray(value)) return value.map(String).map(v => v.trim()).filter(Boolean);\\n  if (typeof value === 'string') {\\n    const trimmed = value.trim();\\n    if (!trimmed) return [];\\n    try {\\n      const parsed = JSON.parse(trimmed);\\n      if (Array.isArray(parsed)) return normalizeArray(parsed);\\n    } catch (error) {\\n      // ignore\\n    }\\n    return trimmed.split(/,|\\\\n/).map(part => part.trim()).filter(Boolean);\\n  }\\n  return [];\\n}\\n\\nfunction parseJson(value) {\\n  if (!value) return {};\\n  if (typeof value === 'object') return value;\\n  if (typeof value === 'string') {\\n    const trimmed = value.trim();\\n    if (!trimmed) return {};\\n    try {\\n      return JSON.parse(trimmed);\\n    } catch (error) {\\n      return {};\\n    }\\n  }\\n  return {};\\n}\\n\\nfunction normalizeSources(list) {\\n  const sources = Array.isArray(list) ? list : normalizeArray(list);\\n  return sources.map(source => {\\n    if (typeof source === 'string') {\\n      return {\\n        Nombre: source,\\n        Cita: source,\\n        URL: null,\\n        Tipo: null,\\n        Notas: null\\n      };\\n    }\\n    if (source && typeof source === 'object') {\\n      return {\\n        Nombre: source.Nombre || source.nombre || source.Cita || source.cita || '',\\n        Cita: source.Cita || source.cita || source.Nombre || source.nombre || '',\\n        URL: source.URL || source.url || null,\\n        Tipo: source.Tipo || source.tipo || null,\\n        Notas: source.Notas || source.notas || null\\n      };\\n    }\\n    return { Nombre: '', Cita: '', URL: null, Tipo: null, Notas: null };\\n  });\\n}\\n\\nconst row = $json;\\nconst researchPayload = parseJson(row.research_json);\\nconst datosClave = normalizeArray(researchPayload.DatosClave || row.key_statistics);\\nconst tendencias = normalizeArray(researchPayload.Tendencias || row.trends);\\nconst insights = normalizeArray(researchPayload.Insights || row.key_insights);\\nconst outline = Array.isArray(researchPayload.Outline) ? researchPayload.Outline : [];\\nconst fuentes = normalizeSources(researchPayload.Fuentes || row.sources);\\nconst keywordsSecundarias = normalizeArray(row.keywords_secundarias);\\nconst summary = researchPayload.Resumen || row.summary || '';\\nconst wordGoal = Math.max(Number(row.estimated_word_count) || 0, 800);\\n\\nreturn [{\\n  json: {\\n    idea_id: row.idea_id,\\n    idea_title: row.idea_title,\\n    idea_status: row.idea_status,\\n    categoria: row.categoria,\\n    keyword_cluster_id: row.keyword_cluster_id,\\n    cluster_name: row.cluster_name,\\n    keyword_principal: row.keyword_principal,\\n    keywords_secundarias: keywordsSecundarias,\\n    project_name: row.project_name,\\n    estimated_word_count: wordGoal || 900,\\n    research_report_id: row.research_report_id,\\n    research_summary: summary,\\n    research_data: {\\n      idea: researchPayload.Idea || row.idea_title,\\n      resumen: summary,\\n      datos_clave: datosClave,\\n      tendencias: tendencias,\\n      insights: insights,\\n      outline: outline,\\n      fuentes: fuentes\\n    },\\n    research_sources: fuentes,\\n    datos_clave: datosClave,\\n    tendencias: tendencias,\\n    insights: insights,\\n    outline: outline,\\n    tokens_used: row.tokens_used,\\n    cost_estimate: row.cost_estimate,\\n    research_created_at: row.research_created_at,\\n    job_started_at: new Date().toISOString()\\n  }\\n}];"
+      },
+      "name": "Preparar Datos Investigacion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "abea3704-7af2-4798-9823-a71c13e8f97d"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\\nconst wordGoal = data.estimated_word_count || 900;\\nconst research = data.research_data || {};\\nconst context = {\\n  idea: data.idea_title,\\n  cluster: data.cluster_name,\\n  keyword_principal: data.keyword_principal,\\n  keywords_secundarias: data.keywords_secundarias,\\n  project_name: data.project_name,\\n  word_goal: wordGoal,\\n  datos_clave: research.datos_clave || [],\\n  tendencias: research.tendencias || [],\\n  insights: research.insights || [],\\n  outline: research.outline || [],\\n  fuentes: research.fuentes || []\\n};\\n\\nconst prompt = `Actua como un redactor senior SEO y GEO. Genera un articulo extenso (minimo ${wordGoal} palabras) basandote exclusivamente en los datos entregados.\\n\\nContexto del proyecto:\\n- Idea: ${context.idea || 'Sin idea'}\\n- Cluster: ${context.cluster || 'Sin cluster'}\\n- Keyword principal: ${context.keyword_principal || 'Sin keyword'}\\n- Palabras objetivo: ${wordGoal}\\n- Proyecto: ${context.project_name || 'N/A'}\\n\\nDatos de investigacion (JSON):\\n${JSON.stringify({\\n  Idea: research.idea || context.idea,\\n  Resumen: research.resumen || '',\\n  DatosClave: context.datos_clave,\\n  Tendencias: context.tendencias,\\n  Insights: context.insights,\\n  Outline: context.outline,\\n  Fuentes: context.fuentes\\n}, null, 2)}\\n\\nInstrucciones clave:\\n1. Usa solo la informacion del JSON, sin inventar datos.\\n2. Cita las fuentes en el texto con el formato (Nombre, Año).\\n3. Mantene tono profesional pero claro, agrega contexto y analisis.\\n4. Utiliza H2 y H3 para estructurar el desarrollo y sigue el outline si existe.\\n5. Incluye una seccion de conclusiones y aprendizajes accionables.\\n6. Al final agrega la lista **Fuentes citadas** con cada fuente en una linea.\\n\\nFormato obligatorio de salida:\\n---\\nMeta Title: [max 60 caracteres]\\nMeta Description: [max 155 caracteres]\\nTags: [tag1, tag2, tag3, ...]\\n---\\n\\n# [Titulo principal con keyword]\\n\\n[Introduccion]\\n\\n## [Seccion H2]\\n[Contenido con datos y citas]\\n\\n## [Seccion H2]\\n[Contenido]\\n\\n**Conclusion:** [Cierre con llamado a la accion]`;\\n\\nreturn [{\\n  json: {\\n    ...data,\\n    word_goal: wordGoal,\\n    prompt_payload: context,\\n    prompt: prompt\\n  }\\n}];"
+      },
+      "name": "Construir Prompt Redaccion Investigada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "b3e34865-811b-41e2-ba11-332deee59779"
+    },
+    {
+      "parameters": {
+        "prompt": "={{ $json.prompt }}",
+        "options": {
+          "maxTokens": 4200,
+          "temperature": 0.6
+        },
+        "requestOptions": {}
+      },
+      "name": "OpenAI",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "fa6daa92-4a3b-4605-8035-c7db39bc66f8",
+      "credentials": {
+        "openAiApi": {
+          "id": "IDR18P8JJHeNClOr",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let response = $json?.message?.content ?? $json?.text ?? $json?.response ?? '';\\nresponse = String(response).trim().replace(/\\r\\n/g, '\\n');\\nconst fenceMatch = response.match(/^```(\\w+)?\\s*\\n([\\s\\S]*?)\\n```$/);\\nif (fenceMatch) {\\n  response = fenceMatch[2].trim();\\n} else {\\n  if (response.startsWith('```')) response = response.replace(/^```\\s*\\n?/, '');\\n  if (response.endsWith('```')) response = response.replace(/\\n?```\\s*$/, '');\\n  response = response.trim();\\n}\\nconst src = ($items('Construir Prompt Redaccion Investigada', 0)[$itemIndex]?.json) ?? {};\\nreturn [{\\n  json: {\\n    ...src,\\n    raw_markdown: response\\n  }\\n}];"
+      },
+      "name": "Parse Markdown Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "2c9c2143-9cd2-41f0-98dd-2358c74b8aa5"
+    },
+    {
+      "parameters": {
+        "jsCode": "const markdown = String($json.raw_markdown || '').replace(/\\r\\n/g, '\\n');\\nconst fm = markdown.match(/^---\\n([\\s\\S]*?)\\n---\\n([\\s\\S]*)$/);\\nlet front = '', content = markdown;\\nif (fm) {\\n  front = fm[1].trim();\\n  content = fm[2] ?? '';\\n}\\nconst meta = {};\\nif (front) {\\n  const lines = front.split('\\n');\\n  let currentKey = null;\\n  for (const raw of lines) {\\n    const line = raw.trim();\\n    if (!line) continue;\\n    const kv = line.match(/^([A-Za-z0-9 _-]+)\\s*:\\s*(.*)$/);\\n    if (kv) {\\n      currentKey = kv[1].toLowerCase().trim();\\n      meta[currentKey] = kv[2];\\n      continue;\\n    }\\n    const li = line.match(/^-\\s+(.*)$/);\\n    if (li && currentKey) {\\n      const prev = meta[currentKey] || '';\\n      meta[currentKey] = (prev ? prev + '\\n' : '') + li[1];\\n      continue;\\n    }\\n    if (currentKey) {\\n      meta[currentKey] = (meta[currentKey] ? meta[currentKey] + '\\n' : '') + line;\\n    }\\n  }\\n}\\nconst get = k => meta[k] || meta[k.replace(/\\s+/g, '')] || '';\\nlet metaTitle = get('meta title') || get('title') || '';\\nlet metaDescription = get('meta description') || get('description') || '';\\nlet tagsRaw = get('tags');\\nlet tags = [];\\nif (tagsRaw) {\\n  const normalized = tagsRaw.replace(/^\\[/, '').replace(/\\]$/, '').split(/\\n|,/);\\n  tags = normalized.map(t => t.trim()).filter(Boolean);\\n}\\nconst h1 = content.match(/^#\\s+(.+)\\s*$/m);\\nconst title = (h1 && h1[1].trim()) || metaTitle || ($json.idea_title || '').trim();\\nconst clamp = (s, n) => (s.length <= n ? s : s.slice(0, n - 1).trimEnd() + '…');\\nif (!metaTitle) metaTitle = clamp(title || 'Sin titulo', 60);\\nif (!metaDescription) {\\n  const plain = content.replace(/^---[\\s\\S]*?---\\n/, '')\\n    .replace(/^#+\\s+.*$/gm, '')\\n    .replace(/\\[([^\\]]+)\\]\\([^)]+\\)/g, '$1')\\n    .replace(/[*_~`#>]/g, '')\\n    .replace(/\\n{2,}/g, '\\n')\\n    .trim();\\n  const firstPara = plain.split('\\n').find(p => p.trim());\\n  metaDescription = clamp(firstPara || 'Articulo generado automaticamente.', 160);\\n}\\nreturn [{\\n  json: {\\n    ...$json,\\n    title: title || 'Sin titulo',\\n    meta_title: metaTitle,\\n    meta_description: metaDescription,\\n    tags: Array.isArray(tags) ? tags : [],\\n    content_markdown: content.trim(),\\n    raw_markdown: markdown\\n  }\\n}];"
+      },
+      "name": "Extraer Metadatos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        0
+      ],
+      "id": "772f70a5-84f0-468e-9e15-2f9ee7e33bd7"
+    },
+    {
+      "parameters": {
+        "jsCode": "let idea_id = $json.idea_id;\\nlet keyword_cluster_id = $json.keyword_cluster_id;\\nconst idx = $itemIndex;\\nconst fromPrompt = $items('Construir Prompt Redaccion Investigada', 0)[idx]?.json || {};\\nconst fromParse = $items('Parse Markdown Response', 0)[idx]?.json || {};\\nconst fromMeta = $items('Extraer Metadatos', 0)[idx]?.json || {};\\nidea_id = idea_id || fromMeta.idea_id || fromParse.idea_id || fromPrompt.idea_id;\\nkeyword_cluster_id = keyword_cluster_id || fromMeta.keyword_cluster_id || fromParse.keyword_cluster_id || fromPrompt.keyword_cluster_id;\\nconst hasContent = typeof $json.content_markdown === 'string' && $json.content_markdown.trim().length > 0;\\nlet word_count = 0;\\nif (hasContent) {\\n  const text = $json.content_markdown\\n    .replace(/^#+\\s+/gm, '')\\n    .replace(/\\[([^\\]]+)\\]\\([^)]+\\)/g, '$1')\\n    .replace(/[*_~`#>]/g, '')\\n    .replace(/^[->]\\s+/gm, '')\\n    .trim();\\n  word_count = text ? text.split(/\\s+/).filter(Boolean).length : 0;\\n}\\nreturn [{\\n  json: {\\n    ...$json,\\n    idea_id,\\n    keyword_cluster_id,\\n    word_count\\n  }\\n}];"
+      },
+      "name": "Calcular Word Count",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "f8b1c5e3-04bd-42f1-8e87-398740cc8aa3"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO drafts (\\n  idea_id,\\n  keyword_cluster_id,\\n  title,\\n  meta_title,\\n  meta_description,\\n  tags,\\n  content_markdown,\\n  word_count,\\n  research_data,\\n  research_sources,\\n  status\\n) VALUES (\\n  $1::uuid,\\n  $2::uuid,\\n  $3,\\n  $4,\\n  $5,\\n  $6::text[],\\n  $7,\\n  $8,\\n  $9::jsonb,\\n  $10::jsonb,\\n  'draft'\\n)\\nRETURNING id, idea_id, keyword_cluster_id, title, meta_title, word_count, created_at;\\n",
+        "options": {
+          "queryReplacement": "=$1 = {{$json.idea_id}}\\n$2 = {{$json.keyword_cluster_id}}\\n$3 = {{$json.title}}\\n$4 = {{$json.meta_title}}\\n$5 = {{$json.meta_description}}\\n$6 = {{ Array.isArray($json.tags) ? $json.tags : [] }}\\n$7 = {{$json.content_markdown}}\\n$8 = {{$json.word_count || 0}}\\n$9 = {{ $json.research_data || {} }}\\n$10 = {{ Array.isArray($json.research_sources) ? $json.research_sources : [] }}"
+        }
+      },
+      "name": "Guardar Draft Investigado",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        0
+      ],
+      "id": "7083fbbc-e7cd-4004-82fc-1ab9cc3282fb",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE ideas\\nSET \\n  status = 'draft_created',\\n  processed_at = CURRENT_TIMESTAMP,\\n  updated_at = CURRENT_TIMESTAMP,\\n  description = {{ $items(\\\"Construir Prompt Redaccion Investigada\\\", 0)[$itemIndex].json.research_summary ? \\\"'\\\" + $items(\\\"Construir Prompt Redaccion Investigada\\\", 0)[$itemIndex].json.research_summary.replace(/'/g, \\\"''\\\") + \\\"'\\\" : \\\"description\\\" }}\\nWHERE id = '{{ $json.idea_id }}'\\nRETURNING id, idea_title, status;",
+        "options": {}
+      },
+      "name": "Actualizar Status Idea",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        0
+      ],
+      "id": "f9719224-fde8-4163-89f5-48eb9d84bc19",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const idx = $itemIndex;\\nconst draftRow = $items('Guardar Draft Investigado', 0)[idx]?.json || {};\\nconst promptData = $items('Construir Prompt Redaccion Investigada', 0)[idx]?.json || {};\\nconst jobLog = {\\n  job_name: 'SEO - 11 Redaccion Investigada',\\n  job_type: 'draft_creation',\\n  status: 'success',\\n  related_keyword_id: promptData.keyword_cluster_id || null,\\n  related_idea_id: promptData.idea_id || null,\\n  related_draft_id: draftRow.id || null,\\n  input_data: {\\n    research_report_id: promptData.research_report_id || null,\\n    word_goal: promptData.word_goal || null,\\n    research_summary: promptData.research_summary || null,\\n    keywords: {\\n      principal: promptData.keyword_principal || null,\\n      secundarias: promptData.keywords_secundarias || []\\n    }\\n  },\\n  output_data: {\\n    title: draftRow.title || null,\\n    meta_title: draftRow.meta_title || null,\\n    word_count: draftRow.word_count || 0,\\n    created_at: draftRow.created_at || null\\n  }\\n};\\nreturn [{\\n  json: {\\n    ...$json,\\n    draft_record: draftRow,\\n    job_log: jobLog,\\n    idea_id: promptData.idea_id,\\n    keyword_cluster_id: promptData.keyword_cluster_id,\\n    research_summary: promptData.research_summary\\n  }\\n}];"
+      },
+      "name": "Preparar Job Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        0
+      ],
+      "id": "41c821ec-7ceb-4214-af01-2bb2b15a261c"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO jobs_log (\\n  job_name,\\n  job_type,\\n  status,\\n  related_keyword_id,\\n  related_idea_id,\\n  related_draft_id,\\n  input_data,\\n  output_data,\\n  completed_at\\n) VALUES (\\n  $1,\\n  $2,\\n  $3,\\n  $4::uuid,\\n  $5::uuid,\\n  $6::uuid,\\n  $7::jsonb,\\n  $8::jsonb,\\n  CURRENT_TIMESTAMP\\n)\\nRETURNING id;\\n",
+        "options": {
+          "queryReplacement": "=$1 = {{$json.job_log.job_name}}\\n$2 = {{$json.job_log.job_type}}\\n$3 = {{$json.job_log.status}}\\n$4 = {{$json.job_log.related_keyword_id || null}}\\n$5 = {{$json.job_log.related_idea_id || null}}\\n$6 = {{$json.job_log.related_draft_id || null}}\\n$7 = {{$json.job_log.input_data || {}}}\\n$8 = {{$json.job_log.output_data || {}}}"
+        }
+      },
+      "name": "Insertar Job Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1888,
+        0
+      ],
+      "id": "154a7394-dd46-4649-9faa-d34f0e31df60",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const idx = $itemIndex;\\nconst draftRow = $items('Guardar Draft Investigado', 0)[idx]?.json || {};\\nconst promptData = $items('Construir Prompt Redaccion Investigada', 0)[idx]?.json || {};\\nreturn [{\\n  json: {\\n    draft_id: draftRow.id || null,\\n    idea_id: promptData.idea_id || null,\\n    research_report_id: promptData.research_report_id || null,\\n    title: draftRow.title || null,\\n    meta_title: draftRow.meta_title || null,\\n    word_count: draftRow.word_count || 0,\\n    idea_title: promptData.idea_title || null,\\n    cluster_name: promptData.cluster_name || null,\\n    keyword_principal: promptData.keyword_principal || null,\\n    research_summary: promptData.research_summary || null,\\n    tokens_used: promptData.tokens_used || null,\\n    job_log_id: $json.id || null,\\n    created_at: draftRow.created_at || null\\n  }\\n}];"
+      },
+      "name": "Preparar Resumen Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        0
+      ],
+      "id": "68bd79fb-bcf9-49f1-a4c7-945f18749241"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "processed_items",
+        "options": {}
+      },
+      "name": "Aggregate Resultados",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2288,
+        0
+      ],
+      "id": "7b4d77f7-7d3e-4ff2-8989-0589130c1e07"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = .processed_items || [];\\nreturn [{\\n  json: {\\n    status: 'success',\\n    total_ideas_processed: items.length,\\n    total_drafts_created: items.length,\\n    drafts_details: items,\\n    generated_at: new Date().toISOString()\\n  }\\n}];"
+      },
+      "name": "Preparar Respuesta Final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        0
+      ],
+      "id": "cbf512ca-1ca0-436e-bd10-1494d8e3d00b"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{  }}",
+        "options": {}
+      },
+      "name": "Respond to Webhook Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2672,
+        0
+      ],
+      "id": "a3142755-ae14-4abf-9f2d-2b878cdbff94"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\\n  json: {\\n    status: 'info',\\n    message: 'No hay ideas con investigacion lista para redactar',\\n    total_ideas_processed: 0,\\n    total_drafts_created: 0,\\n    drafts_details: []\\n  }\\n}];"
+      },
+      "name": "Mensaje Sin Investigacion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        208
+      ],
+      "id": "eb1c0f49-e9c8-402d-8dfe-2ce92bc041db"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{  }}",
+        "options": {}
+      },
+      "name": "Respond to Webhook No Ideas",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        192,
+        208
+      ],
+      "id": "70232db3-b4b2-4653-8fd6-d35dc099a093"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Leer Investigacion Lista",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Investigacion Lista": {
+      "main": [
+        [
+          {
+            "node": "Tiene Investigacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiene Investigacion": {
+      "main": [
+        [
+          {
+            "node": "Preparar Datos Investigacion",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mensaje Sin Investigacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Datos Investigacion": {
+      "main": [
+        [
+          {
+            "node": "Construir Prompt Redaccion Investigada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construir Prompt Redaccion Investigada": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Parse Markdown Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Markdown Response": {
+      "main": [
+        [
+          {
+            "node": "Extraer Metadatos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Metadatos": {
+      "main": [
+        [
+          {
+            "node": "Calcular Word Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular Word Count": {
+      "main": [
+        [
+          {
+            "node": "Guardar Draft Investigado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Draft Investigado": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Status Idea",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Status Idea": {
+      "main": [
+        [
+          {
+            "node": "Preparar Job Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Job Log": {
+      "main": [
+        [
+          {
+            "node": "Insertar Job Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar Job Log": {
+      "main": [
+        [
+          {
+            "node": "Preparar Resumen Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Resumen Draft": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Resultados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Resultados": {
+      "main": [
+        [
+          {
+            "node": "Preparar Respuesta Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Respuesta Final": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensaje Sin Investigacion": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook No Ideas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4d3e8f21-373c-4086-8a44-28dabb489a5d",
+  "meta": {
+    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+  },
+  "id": "XWVXZlBvq8Co7iK7",
+  "tags": [
+    {
+      "createdAt": "2025-10-16T23:45:00.633Z",
+      "updatedAt": "2025-10-16T23:45:00.633Z",
+      "id": "Jyvk52dJ2wNnSCbU",
+      "name": "SEO"
+    },
+    {
+      "createdAt": "2025-10-22T01:35:31.385Z",
+      "updatedAt": "2025-10-22T01:35:31.385Z",
+      "id": "cxNxNF5IUaobNuPq",
+      "name": "Investigacion"
+    },
+    {
+      "createdAt": "2025-10-22T09:45:35.720Z",
+      "updatedAt": "2025-10-22T09:45:35.720Z",
+      "id": "r75AIwbiwx4PUDUh",
+      "name": "Redaccion"
+    }
+  ]
+}
