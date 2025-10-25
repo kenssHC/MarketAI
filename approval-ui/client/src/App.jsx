@@ -750,7 +750,9 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
     try {
       setImageGenerating(true);
       const response = await generateDraftImage(draft.id);
+      console.log('RESPONSE COMPLETA:', response);
       const preview = response.preview || {};
+      console.log('PREVIEW:', preview);
       const updated = {
         ...draft,
         featured_image_url: response.draft?.featured_image_url ?? draft.featured_image_url ?? null,
@@ -806,7 +808,7 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
       <div className="editor-panel">
         <header className="editor-header">
           <div>
-            <h2>Editar articulo</h2>
+            <h2>Editar Artículo</h2>
             <p className="muted">
               Keyword: {keyword.keyword_principal} - Idea: {idea.idea_title}
             </p>
@@ -822,6 +824,14 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
               value={content}
               onChange={(event) => setContent(event.target.value)}
             />
+            
+            <label>Prompt utilizado para generar el artículo:</label>
+            <textarea
+              className="small-textarea"
+              value={idea.idea_title || ''}
+              readOnly
+            />
+            
             <div className="editor-actions">
               <button
                 className="btn btn-secondary"
@@ -834,23 +844,23 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
           </section>
 
           <section className="editor-sidebar">
+            <h3>Metadatos</h3>
             <div className="card card--sub">
-              <h3>Metadatos</h3>
-              <label>Meta titulo</label>
+              <label>Meta Título</label>
               <input
                 type="text"
                 value={metaTitle}
                 onChange={(event) => setMetaTitle(event.target.value)}
               />
 
-              <label>Meta descripcion</label>
+              <label>Meta Descripción</label>
               <textarea
                 className="small-textarea"
                 value={metaDescription}
                 onChange={(event) => setMetaDescription(event.target.value)}
               />
 
-              <label>Palabras clave (separadas por coma)</label>
+              <label>Palabras Clave</label>
               <input
                 type="text"
                 value={tags}
@@ -858,8 +868,8 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
               />
             </div>
 
+            <h3>Imagen Principal</h3>
             <div className="card card--sub">
-              <h3>Imagen principal</h3>
               {displayImageUrl ? (
                 <>
                   <img
@@ -876,27 +886,23 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
               ) : (
                 <p className="muted">Aun no se ha generado una imagen para este articulo.</p>
               )}
-              <label>Alt text</label>
-              <textarea
-                className="small-textarea"
-                value={displayAltText}
-                readOnly
-              />
-              <label>Prompt de imagen</label>
+              
+              <label>Prompt de imagen:</label>
               <textarea
                 className="small-textarea"
                 value={displayPrompt}
                 readOnly
               />
-              <button
-                className="btn btn-secondary"
+              
+            </div>
+            <button
+                className="btn btn-secondary btn-generate-image"
                 type="button"
                 onClick={handleGenerateImage}
                 disabled={imageGenerating}
               >
-                {imageGenerating ? 'Generando...' : 'Generar imagen'}
+                {imageGenerating ? 'Generando...' : 'Generar Imagen'}
               </button>
-            </div>
           </section>
         </div>
 

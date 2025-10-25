@@ -241,7 +241,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const imgB64 = $json.images?.[0]?.content || '';\nif (!imgB64) return [{ json: { ...$json, _skip: true, _skip_reason: 'no_image_returned' } }];\n\nconst fileName = `img_${$json.draft_id || Date.now()}.png`;\nreturn [{\n  json: { ...$json, image_file_name: fileName, image_format: 'png' },\n  binary: { data: { data: Buffer.from(imgB64, 'base64') } } // n8n binary\n}];\n"
+        "jsCode": "const imgB64 = $json.images?.[0]?.content || '';\nif (!imgB64) return [{ json: { ...$json, _skip: true, _skip_reason: 'no_image_returned' } }];\n\nconst fileName = `img_${$json.draft_id || Date.now()}.png`;\nconst extension = $json.image_format || 'png';\n\nreturn [{\n  json: {\n    ...$json,\n    image_file_name: fileName,\n    image_format: extension,\n    image_base64: imgB64,\n    preview_image_data_url: `data:image/${extension};base64,${imgB64}`,\n    preview_image_base64: imgB64\n  },\n  binary: {\n    data: {\n      data: imgB64,\n      mimeType: `image/${extension}`,\n      fileName\n    }\n  }\n}];\n"
       },
       "name": "Convertir Imagen a Binario1",
       "type": "n8n-nodes-base.code",

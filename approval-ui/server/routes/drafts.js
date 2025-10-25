@@ -265,10 +265,34 @@ async function registerJobLog(client, { draft, reviewer, action, payload, status
 router.post('/:id/approve', async (req, res) => {
   const reviewer = req.body?.reviewer || 'editor';
   const notes = req.body?.notes || null;
+  const previewImage = req.body?.previewImage || null;
 
   const client = await getClient();
   try {
     await client.query('BEGIN');
+
+    // Si hay imagen de preview, subirla a WordPress primero
+    if (previewImage?.base64) {
+      try {
+        const workflowResponse = await callN8nWebhook('seo/imagenes/generar', {
+          draft_id: req.params.id,
+          limit: 1,
+          force: true,
+          upload_to_wordpress: true,
+          preview_image_base64: previewImage.base64,
+          preview_image_format: previewImage.format || 'png',
+          preview_alt_text: previewImage.altText || null,
+          preview_visual_prompt: previewImage.visualPrompt || null
+        });
+
+        // El workflow ya actualiza la BD con la URL de WordPress
+        console.log('[api] imagen subida a WordPress durante aprobación', workflowResponse);
+      } catch (imageError) {
+        console.error('[api] error al subir imagen durante aprobación', imageError);
+        // Continuar con la aprobación aunque falle la imagen
+      }
+    }
+
     const updateResult = await client.query(
       `UPDATE drafts
         SET status = 'approved',
@@ -291,7 +315,7 @@ router.post('/:id/approve', async (req, res) => {
       draft: draftRow,
       reviewer,
       action: 'approve',
-      payload: { notes }
+      payload: { notes, hadPreviewImage: Boolean(previewImage) }
     });
 
     await client.query('COMMIT');
@@ -352,12 +376,27 @@ router.post('/:id/return', async (req, res) => {
 router.post('/:id/image', async (req, res) => {
   const { id } = req.params;
   try {
-    await callN8nWebhook('seo/imagenes/generar', {
+    // Llamar al workflow con upload_to_wordpress=false para generar solo preview
+    const workflowResponse = await callN8nWebhook('seo/imagenes/generar', {
       draft_id: id,
       limit: 1,
-      force: true
+      force: true,
+      upload_to_wordpress: false
     });
 
+    console.log('WORKFLOW RESPONSE:', JSON.stringify(workflowResponse, null, 2));
+
+    // Extraer los datos del primer draft procesado
+    const firstDraft = workflowResponse.drafts?.[0];
+    console.log('FIRST DRAFT:', JSON.stringify(firstDraft, null, 2));
+    if (!firstDraft) {
+      return res.status(500).json({ 
+        message: 'El workflow no devolvió datos de imagen',
+        workflowResponse 
+      });
+    }
+
+    // Consultar el draft actualizado de la BD (puede no tener cambios si es preview)
     const refreshed = await query(
       `SELECT id, featured_image_url, featured_image_alt, featured_image_prompt
        FROM drafts
@@ -365,13 +404,17 @@ router.post('/:id/image', async (req, res) => {
       [id]
     );
 
-    if (!refreshed.rowCount) {
-      return res.status(404).json({ message: 'Draft no encontrado' });
-    }
-
+    // Devolver TANTO los datos de la BD COMO los de preview
     res.json({
-      message: 'Imagen generada',
-      draft: refreshed.rows[0]
+      message: 'Preview de imagen generada',
+      draft: refreshed.rowCount ? refreshed.rows[0] : null,
+      preview: {
+        imageDataUrl: firstDraft.preview_image_data_url || null,
+        base64: firstDraft.preview_image_base64 || null,
+        format: firstDraft.image_format || null,
+        altText: firstDraft.alt_text || null,
+        visualPrompt: firstDraft.visual_prompt || null
+      }
     });
   } catch (error) {
     console.error('[api] failed to generate image', error);
