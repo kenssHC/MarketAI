@@ -174,7 +174,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH kw AS (\n  SELECT UNNEST(\n    {{ \n      ($json.all_keywords?.length || 0) > 0\n        ? \"ARRAY[\" +\n            $json.all_keywords\n              .map(k => \"'\" + String(k).replace(/'/g, \"''\") + \"'\")\n              .join(\",\") +\n          \"]\"\n        : \"ARRAY[]::text[]\"\n    }}\n  ) AS k\n)\nUPDATE keywords\nSET\n  status = 'archived',\n  updated_at = CURRENT_TIMESTAMP\nWHERE\n  keyword_principal IN (SELECT k FROM kw)\n  AND id <> '{{ $json.id }}'\n  AND status = 'pending';\n",
+        "query": "WITH kw AS (\n  SELECT UNNEST(\n    {{ \n      ($json.all_keywords?.length || 0) > 0\n        ? \"ARRAY[\" +\n            $json.all_keywords\n              .map(k => \"'\" + String(k).replace(/'/g, \"''\") + \"'\")\n              .join(\",\") +\n          \"]\"\n        : \"ARRAY[]::text[]\"\n    }}\n  ) AS k\n)\nUPDATE keywords\nSET\n  status = 'archived',\n  updated_at = CURRENT_TIMESTAMP\nWHERE\n  keyword_principal IN (SELECT k FROM kw)\n  AND status = 'pending'\n  {{ $json.new_cluster_ids?.length ? \" AND id NOT IN (\" + $json.new_cluster_ids.map(id => \"'\" + String(id).replace(/'/g, \"''\") + \"'\").join(\",\") + \")\" : \"\" }};\n",
         "options": {}
       },
       "name": "Archivar Keywords Originales",
@@ -194,13 +194,11 @@
     },
     {
       "parameters": {
-        "aggregate": "aggregateAllItemData",
-        "destinationFieldName": "all_clusters",
-        "options": {}
+        "jsCode": "const insertedItems = $items('Insertar Cluster', 0) || [];\nconst preparedItems = $items('Preparar Datos Cluster', 0) || [];\nconst originalKeywords = $items('Preparar Array Keywords', 0)?.[0]?.json?.keywords || [];\n\nfunction parseSecundarias(value) {\n  if (Array.isArray(value)) return value;\n  if (value == null) return [];\n  if (typeof value === 'string') {\n    const trimmed = value.trim();\n    if (!trimmed) return [];\n    try {\n      return JSON.parse(trimmed);\n    } catch {\n      return trimmed.split(',').map(v => v.trim()).filter(Boolean);\n    }\n  }\n  return [];\n}\n\nconst combined = insertedItems.map((item, index) => {\n  const base = item?.json || {};\n  const prepared = preparedItems[index]?.json || {};\n  const secundarias = parseSecundarias(prepared.keywords_secundarias);\n  return {\n    id: base.id || null,\n    cluster_name: base.cluster_name || prepared.cluster_name || '',\n    keyword_principal: base.keyword_principal || prepared.keyword_principal || '',\n    keywords_secundarias: secundarias,\n    total_keywords_secundarias: secundarias.length\n  };\n});\n\nconst allKeywordsFlat = Array.isArray(originalKeywords)\n  ? originalKeywords.filter(Boolean)\n  : [];\nconst newClusterIds = combined\n  .map(entry => entry.id)\n  .filter(Boolean);\n\nreturn [{\n  json: {\n    all_clusters: combined,\n    all_keywords: allKeywordsFlat,\n    new_cluster_ids: newClusterIds\n  }\n}];"
       },
       "name": "Aggregate Clusters",
-      "type": "n8n-nodes-base.aggregate",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         1408,
         0

@@ -1,5 +1,6 @@
 import express from 'express';
 import { query, getClient } from '../db.js';
+import callN8nWebhook from '../services/n8n.js';
 
 const router = express.Router();
 
@@ -150,6 +151,69 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+router.put('/:id', async (req, res) => {
+  try {
+    const fields = req.body || {};
+    const assignments = [];
+    const params = [];
+
+    const map = [
+      ['title', 'title'],
+      ['metaTitle', 'meta_title'],
+      ['metaDescription', 'meta_description'],
+      ['contentMarkdown', 'content_markdown'],
+      ['contentHtml', 'content_html'],
+      ['featuredImageUrl', 'featured_image_url'],
+      ['featuredImageAlt', 'featured_image_alt'],
+      ['featuredImagePrompt', 'featured_image_prompt'],
+      ['linkedinCopy', 'linkedin_copy'],
+      ['facebookCopy', 'facebook_copy'],
+      ['status', 'status'],
+      ['rejectionReason', 'rejection_reason']
+    ];
+
+    for (const [inputKey, column] of map) {
+      if (Object.prototype.hasOwnProperty.call(fields, inputKey)) {
+        assignments.push(`${column} = $${params.length + 1}`);
+        params.push(fields[inputKey]);
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(fields, 'tags')) {
+      assignments.push(`tags = $${params.length + 1}::text[]`);
+      params.push(Array.isArray(fields.tags) ? fields.tags : []);
+    }
+
+    if (!assignments.length) {
+      return res.status(400).json({ message: 'No se enviaron campos para actualizar' });
+    }
+
+    assignments.push('updated_at = NOW()');
+    params.push(req.params.id);
+
+    const sql = `
+      UPDATE drafts
+      SET ${assignments.join(', ')}
+      WHERE id = $${params.length}
+      RETURNING *
+    `;
+
+    const result = await query(sql, params);
+    if (!result.rowCount) {
+      return res.status(404).json({ message: 'Draft no encontrado' });
+    }
+
+    const draftRow = result.rows[0];
+    const joined = await query(`${baseSelect} WHERE d.id = $1`, [draftRow.id]);
+    const draft = joined.rowCount ? mapDraftRow(joined.rows[0]) : mapDraftRow(draftRow);
+
+    res.json({ message: 'Draft actualizado', draft });
+  } catch (error) {
+    console.error('[api] failed to update draft', error);
+    res.status(500).json({ message: 'Error al actualizar el draft', details: error.message });
+  }
+});
+
 async function registerJobLog(client, { draft, reviewer, action, payload, status = 'success' }) {
   const now = new Date();
   const inputData = {
@@ -282,6 +346,36 @@ router.post('/:id/return', async (req, res) => {
     res.status(500).json({ message: 'Error al devolver el draft', details: error.message });
   } finally {
     client.release();
+  }
+});
+
+router.post('/:id/image', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await callN8nWebhook('seo/imagenes/generar', {
+      draft_id: id,
+      limit: 1,
+      force: true
+    });
+
+    const refreshed = await query(
+      `SELECT id, featured_image_url, featured_image_alt, featured_image_prompt
+       FROM drafts
+       WHERE id = $1`,
+      [id]
+    );
+
+    if (!refreshed.rowCount) {
+      return res.status(404).json({ message: 'Draft no encontrado' });
+    }
+
+    res.json({
+      message: 'Imagen generada',
+      draft: refreshed.rows[0]
+    });
+  } catch (error) {
+    console.error('[api] failed to generate image', error);
+    res.status(500).json({ message: 'Error al generar la imagen', details: error.message });
   }
 });
 

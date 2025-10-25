@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import config from './config.js';
 import draftsRouter from './routes/drafts.js';
+import keywordsRouter from './routes/keywords.js';
 import { query } from './db.js';
 
 const app = express();
@@ -21,6 +22,7 @@ app.get('/api/health', async (_req, res) => {
   }
 });
 
+app.use('/api/keywords', keywordsRouter);
 app.use('/api/drafts', draftsRouter);
 
 if (fs.existsSync(config.frontendBuildDir)) {
