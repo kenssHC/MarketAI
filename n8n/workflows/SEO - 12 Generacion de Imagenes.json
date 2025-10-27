@@ -6,6 +6,7 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
+            "leftValue": "",
             "typeValidation": "loose",
             "version": 1
           },
@@ -16,10 +17,31 @@
               "operator": {
                 "type": "number",
                 "operation": "equal"
+              },
+              "id": "e911e427-0498-4af8-b845-d16d142756a3"
+            },
+            {
+              "id": "9aa71a9e-2b66-45ee-887e-0bbe98dcb2b1",
+              "leftValue": "={{ $json.skip_generation }}",
+              "rightValue": "=0",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "4589e745-2f59-4ccb-ae9e-5426fa8e8f19",
+              "leftValue": "={{ $json.image_base64 }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "notEmpty",
+                "singleValue": true
               }
             }
           ],
-          "combinator": "and"
+          "combinator": "or"
         },
         "options": {
           "looseTypeValidation": true
@@ -29,10 +51,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -2144,
-        560
+        -1120,
+        288
       ],
-      "id": "2f88c410-9c96-4814-a113-2822d5f205ca"
+      "id": "bef8b171-ceed-4ff9-bd3e-0441fffb6308"
     },
     {
       "parameters": {
@@ -42,16 +64,17 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1664,
-        304
+        -640,
+        32
       ],
-      "id": "21c528fd-2e92-40d0-9fa8-6cb78eb903e4"
+      "id": "5e6ef68d-7a04-438c-9e5f-310c9b26b40f"
     },
     {
       "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
+            "leftValue": "",
             "typeValidation": "loose",
             "version": 1
           },
@@ -62,10 +85,31 @@
               "operator": {
                 "type": "number",
                 "operation": "equal"
+              },
+              "id": "a23cc874-e7ea-4a37-9b6b-ee43afeda50f"
+            },
+            {
+              "id": "b3145f61-8d69-4c59-a7e0-0249f4b75556",
+              "leftValue": "={{ $json.upload_to_wordpress }}",
+              "rightValue": "=true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "13da17b1-8dfa-46a7-b0f7-1020cb43f8c9",
+              "leftValue": "={{ $json.image_base64 }}",
+              "rightValue": "=true",
+              "operator": {
+                "type": "boolean",
+                "operation": "empty",
+                "singleValue": true
               }
             }
           ],
-          "combinator": "and"
+          "combinator": "or"
         },
         "options": {
           "looseTypeValidation": true
@@ -75,10 +119,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -1056,
-        560
+        -32,
+        288
       ],
-      "id": "7317594a-4841-4a08-bff2-10326955e4b2"
+      "id": "55c96f9f-ae44-490b-98c4-d0c7c55c79d3"
     },
     {
       "parameters": {
@@ -88,10 +132,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -832,
-        752
+        496,
+        576
       ],
-      "id": "43f95091-505d-48ad-84db-2c0f27057558"
+      "id": "b0980345-7fba-4cb4-ba84-b1291d3975f8"
     },
     {
       "parameters": {
@@ -104,10 +148,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -3056,
-        560
+        -2032,
+        288
       ],
-      "id": "88497a5c-d3d6-4853-9e45-7927f3e7fd5d",
+      "id": "b399bad0-8941-440d-815a-18efb55802b5",
       "webhookId": "376bc55b-08c8-4d2c-98e8-fdccf2fd9a06"
     },
     {
@@ -120,10 +164,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -2688,
-        560
+        -1664,
+        288
       ],
-      "id": "e16c239c-431d-4793-ba3e-a0d23739caff",
+      "id": "f00d6fca-b88d-4625-ab04-631cd94e5979",
       "credentials": {
         "postgres": {
           "id": "EmQwHYycOpHw660p",
@@ -161,10 +205,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -2512,
-        560
+        -1488,
+        288
       ],
-      "id": "b0c5202c-0b01-4de3-9a27-7f56d18df4aa"
+      "id": "8a8e075c-0af6-41e6-9fb8-ad8c3d6ed0a2"
     },
     {
       "parameters": {
@@ -174,10 +218,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2304,
-        560
+        -1280,
+        288
       ],
-      "id": "b79294d5-cec0-4bb3-9df2-b4e8c29fbca7"
+      "id": "505face8-94d0-43c3-9ef4-952afbf4c92d"
     },
     {
       "parameters": {
@@ -221,10 +265,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1920,
-        560
+        -896,
+        288
       ],
-      "id": "48ded15b-ef45-415a-bc03-b088855dff9f"
+      "id": "2bf85edd-5f18-4ef3-859b-e94cf020123a"
     },
     {
       "parameters": {
@@ -234,38 +278,41 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1728,
-        560
+        -704,
+        288
       ],
-      "id": "e5e4f3ce-f196-424d-8833-c1d1123508ed"
+      "id": "8c824069-3a57-4cf6-b7f5-29c0c9068d6c"
     },
     {
       "parameters": {
-        "jsCode": "const imgB64 = $json.images?.[0]?.content || '';\nif (!imgB64) return [{ json: { ...$json, _skip: true, _skip_reason: 'no_image_returned' } }];\n\nconst fileName = `img_${$json.draft_id || Date.now()}.png`;\nconst extension = $json.image_format || 'png';\n\nreturn [{\n  json: {\n    ...$json,\n    image_file_name: fileName,\n    image_format: extension,\n    image_base64: imgB64,\n    preview_image_data_url: `data:image/${extension};base64,${imgB64}`,\n    preview_image_base64: imgB64\n  },\n  binary: {\n    data: {\n      data: imgB64,\n      mimeType: `image/${extension}`,\n      fileName\n    }\n  }\n}];\n"
+        "mode": "runOnceForEachItem",
+        "jsCode": "// En modo filesystem, usar helpers de n8n\nconst item = $input.item;\n\nif (!item.binary || !item.binary.data) {\n  return { \n    ...$json, \n    _skip: true, \n    _skip_reason: 'no_binary_in_item'\n  };\n}\n\n// Usar el helper para obtener el buffer\nconst binaryData = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst imgB64 = binaryData.toString('base64');\n\nconst fileName = `img_${$json.draft_id || Date.now()}.png`;\nconst extension = $json.image_format || 'png';\n\nreturn {\n  ...$json,\n  image_file_name: fileName,\n  image_format: extension,\n  image_base64: imgB64,\n  preview_image_data_url: `data:image/${extension};base64,${imgB64}`,\n  preview_image_base64: imgB64\n};"
       },
       "name": "Convertir Imagen a Binario1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1328,
-        560
+        -304,
+        288
       ],
-      "id": "da25e24f-a6cf-49b6-b3aa-d551cd53e289"
+      "id": "47610f1c-109c-4bd3-8d26-62d29c6506f4"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE drafts\\nSET\\n  featured_image_url = $1,\\n  featured_image_alt = $2,\\n  featured_image_prompt = $3,\\n  updated_at = NOW()\\nWHERE id = $4\\nRETURNING id, featured_image_url, featured_image_alt, featured_image_prompt, updated_at",
-        "options": {}
+        "query": "UPDATE drafts\nSET\n  featured_image_url    = $1,\n  featured_image_alt    = $2,\n  featured_image_prompt = $3,\n  updated_at            = NOW()\nWHERE id = $4::uuid\nRETURNING id, featured_image_url, featured_image_alt, featured_image_prompt, updated_at;",
+        "options": {
+          "queryReplacement": "$1 = {{ $json.wordpress_media_url || $json.image_url }}, $2 = {{ $json.image_alt || 'Imagen generada' }}, $3 = {{ $json.visual_prompt || $json.image_prompt || '' }}, $4 = {{ $json.draft_id }}"
+        }
       },
       "name": "Actualizar Draft Imagen1",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -384,
-        560
+        560,
+        272
       ],
-      "id": "b7f4fc91-cb04-43ff-9cd0-fcc095176fca",
+      "id": "a1091aa8-22da-4886-b35b-fd293e34a0b9",
       "credentials": {
         "postgres": {
           "id": "EmQwHYycOpHw660p",
@@ -281,10 +328,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -160,
-        560
+        752,
+        272
       ],
-      "id": "e5a3033b-61d3-462b-87e7-41024055b819"
+      "id": "ef1eab89-6191-47e9-8fc4-a86fb0f918f6"
     },
     {
       "parameters": {
@@ -294,10 +341,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        48,
-        560
+        976,
+        272
       ],
-      "id": "901670d0-e114-4217-a1d5-f08ff8391c63"
+      "id": "86a8b47f-dad9-477b-8ee8-d7b76c2153c4"
     },
     {
       "parameters": {
@@ -311,10 +358,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        256,
-        560
+        1152,
+        272
       ],
-      "id": "4b6c502d-0759-4711-b441-29a02054086a",
+      "id": "e9736fe5-c0d6-441b-831e-bf5aeb5378a5",
       "credentials": {
         "postgres": {
           "id": "EmQwHYycOpHw660p",
@@ -330,10 +377,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        464,
-        560
+        1344,
+        272
       ],
-      "id": "f0e7c674-071b-4c15-bd28-4772f4ae1d09"
+      "id": "e28ebafb-664a-4d83-a5d8-bb013bd04042"
     },
     {
       "parameters": {
@@ -345,10 +392,10 @@
       "type": "n8n-nodes-base.aggregate",
       "typeVersion": 1,
       "position": [
-        672,
-        560
+        1552,
+        272
       ],
-      "id": "3305fe31-c284-4ef2-b092-ca348786fd7e"
+      "id": "fa6a6792-b82f-4c49-b9a2-8a6f8c3984fc"
     },
     {
       "parameters": {
@@ -358,10 +405,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
-        560
+        1744,
+        272
       ],
-      "id": "1f06f797-a38b-4952-9b37-8857ea36e501"
+      "id": "0b175228-07cd-4528-934e-6cec84054d31"
     },
     {
       "parameters": {
@@ -373,10 +420,10 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1088,
-        560
+        1936,
+        272
       ],
-      "id": "420f813e-9b82-4a25-aee9-1ac869f250c4"
+      "id": "5fae7793-af85-413d-90a3-2a285e32e376"
     },
     {
       "parameters": {
@@ -386,10 +433,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2096,
-        768
+        -1072,
+        496
       ],
-      "id": "c160d4a7-3a6e-4bef-b8f9-4b8e9d3df567"
+      "id": "4a71bd54-e764-46a8-9b61-bb1f34f77ba8"
     },
     {
       "parameters": {
@@ -401,36 +448,35 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        -1888,
-        768
+        -864,
+        496
       ],
-      "id": "b27d317d-4030-4201-a24b-deb8412ff816"
+      "id": "33a19640-7ace-4934-a9b7-3000b076a0e0"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.wordpress_endpoint }}",
+        "url": "=https://larabs.pe/wp-json/wp/v2/media",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Content-Type",
-              "value": "={{ 'image/' + ($json.image_format || 'png') }}"
+              "value": "={{ $binary.data.mimeType || 'image/png' }}"
             },
             {
               "name": "Content-Disposition",
-              "value": "={{ 'attachment; filename= + $json.image_file_name + ' }}"
+              "value": "={{ 'attachment; filename=\"' + ($binary.data.fileName || $json.image_file_name || 'image.png') + '\"' }}"
             },
             {
               "name": "Authorization",
-              "value": "={{ $json.wordpress_auth_header || '' }}"
-            },
-            {
-              "name": "X-WP-Nonce",
-              "value": "={{ $json.wordpress_nonce || '' }}"
+              "value": "=Basic ADMIN_USER:ADMIN_PASSWORD_ENCODED_BASE64"
             }
           ]
         },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
         "options": {
           "timeout": 100000
         }
@@ -439,23 +485,23 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -832,
-        560
+        192,
+        272
       ],
-      "id": "83cdc8b8-fbd9-4e2e-8d80-732dc76ac922"
+      "id": "38b3763b-5401-4c8e-8429-660c9f366f63"
     },
     {
       "parameters": {
-        "jsCode": "const idx = $itemIndex;\nconst context = $items('Convertir Imagen a Binario1', 0)[idx]?.json || {};\nconst response = $json || {};\n\nconst mediaId = response.id ?? response.data?.id ?? null;\nconst sourceUrl = response.source_url || response.guid?.rendered || response.media_details?.sizes?.full?.source_url || null;\n\nif (!sourceUrl) {\n  throw new Error('WordPress no devolvio source_url al subir la imagen.');\n}\n\nreturn [{\n  json: {\n    ...context,\n    wordpress_response: response,\n    wordpress_media_id: mediaId,\n    wordpress_media_url: sourceUrl,\n    image_url: sourceUrl\n  }\n}];\n"
+        "jsCode": "const idx = $itemIndex;\n\n// Intenta traer el json de un nodo si existe en esta ejecución\nconst fromNode = (name) => {\n  try { return $items(name, 0)[idx]?.json ?? null; }\n  catch (e) { return null; }\n};\n\n// Prioridades de “contexto” según tus ramas\nconst context =\n  fromNode('Convertir Imagen a Binario1') ||     // rama que convierte base64→binario\n  fromNode('Usar Imagen Proporcionada1') ||      // rama cuando subes una imagen ya dada\n  fromNode('Preparar Contexto Imagen1') ||       // cualquier nodo donde tengas los metadatos\n  {};                                            // fallback\n\n// Respuesta directa del upload a WP (input del Code)\nconst response = $json ?? {};\n\nconst mediaId   = response.id ?? response.data?.id ?? null;\nconst sourceUrl = response.source_url\n               ?? response.guid?.rendered\n               ?? response.media_details?.sizes?.full?.source_url\n               ?? null;\n\nif (!sourceUrl) {\n  throw new Error('WordPress no devolvió source_url al subir la imagen.');\n}\n\nreturn [{\n  json: {\n    ...context,\n    wordpress_response: response,\n    wordpress_media_id: mediaId,\n    wordpress_media_url: sourceUrl,\n    image_url: sourceUrl\n  }\n}];"
       },
       "name": "Combinar Datos WordPress1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -608,
-        560
+        368,
+        272
       ],
-      "id": "479aeebe-0fed-4022-aad5-382294a8db23"
+      "id": "5f939998-6bb4-4070-9dd2-408c94a85b23"
     },
     {
       "parameters": {
@@ -464,10 +510,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2864,
-        560
+        -1840,
+        288
       ],
-      "id": "57a918db-c2b8-4473-8997-32611c011001",
+      "id": "cc077155-a392-48db-9a45-b2c65cc81b38",
       "name": "Code in JavaScript1"
     },
     {
@@ -485,10 +531,10 @@
       "type": "@n8n/n8n-nodes-langchain.googleGemini",
       "typeVersion": 1,
       "position": [
-        -1520,
-        560
+        -496,
+        288
       ],
-      "id": "bb501316-2363-4220-9b43-7ba201e1b354",
+      "id": "0989966f-7178-48f1-9d87-7432c7b740af",
       "name": "Generate an image",
       "credentials": {
         "googlePalmApi": {
@@ -779,7 +825,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "ccb8298a-1d34-47f6-a812-391a179bec46",
+  "versionId": "e329dfe8-f1e4-46af-af10-194eac89b5f2",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"

@@ -25,9 +25,9 @@ const NAV_ITEMS = [
 
 const BLOG_TABS = [
   { id: 'keywords', label: 'Keywords' },
-  { id: 'revision', label: 'Revision QA' },
-  //{ id: 'programacion', label: 'Programacion', disabled: true },
-  //{ id: 'configuracion', label: 'Configuracion', disabled: true }
+  //{ id: 'revision', label: 'Revision QA' },
+  { id: 'programacion', label: 'Calendario', disabled: false },
+  { id: 'configuracion', label: 'Configuración', disabled: false }
 ];
 
 function Toast({ toast }) {
@@ -35,6 +35,105 @@ function Toast({ toast }) {
   return (
     <div className={`toast toast--${toast.variant || 'info'}`}>
       {toast.message}
+    </div>
+  );
+}
+
+function BlogCalendario() {
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+  const dayHeaders = ['vie', 'sáb', 'dom', 'lun', 'mar', 'mié', 'jue'];
+
+  return (
+    <div className="panel">
+      <header className="panel__header">
+        <div>
+          <h2>Calendario</h2>
+          <p className="muted">Vista mensual y semanal con filtros por estado y búsqueda</p>
+        </div>
+        <div className="calendar-view-selector">
+          <select>
+            <option>Mes</option>
+            <option>Semana</option>
+          </select>
+        </div>
+      </header>
+      <div className="calendar-grid">
+        {dayHeaders.map(day => (
+          <div key={day} className="calendar-grid__day-header">{day}</div>
+        ))}
+        {days.map(day => (
+          <div key={day} className="calendar-grid__day">
+            <span className="calendar-grid__day-number">{day}</span>
+            {day === 2 && (
+              <div className="calendar-item">
+                Como vender más con inteligencia artific
+                <span className="calendar-item__status"></span>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BlogConfiguracion() {
+  return (
+    <div className="panel">
+      <header className="panel__header">
+        <div>
+          <h2>Configuración</h2>
+          <p className="muted">Estos ajustes afectan a futuras generaciones de contenido.</p>
+        </div>
+      </header>
+      <div className="card">
+        <div className="config-section">
+          <h3>Frecuencia de publicación</h3>
+          <div className="config-grid">
+            <div>
+              <label htmlFor="pubs-per-day">Publicaciones por día</label>
+              <input id="pubs-per-day" type="number" defaultValue="1" />
+            </div>
+            <div>
+              <label>Días de la semana</label>
+              <div className="day-selector">
+                <button className="day-selector__btn">Dom</button>
+                <button className="day-selector__btn day-selector__btn--active">Lun</button>
+                <button className="day-selector__btn day-selector__btn--active">Mar</button>
+                <button className="day-selector__btn day-selector__btn--active">Mié</button>
+                <button className="day-selector__btn day-selector__btn--active">Jue</button>
+                <button className="day-selector__btn">Vie</button>
+                <button className="day-selector__btn">Sáb</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="config-section">
+          <h3>Configuración de contenido</h3>
+          <div className="config-grid">
+            <div>
+              <label htmlFor="text-length">Longitud de texto</label>
+              <select id="text-length">
+                <option>Corto (50-100 palabras)</option>
+              </select>
+            </div>
+            <div>
+              <label>Incluir imágenes</label>
+              <div className="toggle-switch">
+                <input type="checkbox" id="include-images" defaultChecked />
+                <label htmlFor="include-images" className="toggle-switch__label"></label>
+                <span className="toggle-switch__text">Activado</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer className="config-footer">
+          <button className="btn btn-ghost">Restablecer valores</button>
+          <button className="btn btn-primary btn-pink">Guardar configuración</button>
+        </footer>
+      </div>
     </div>
   );
 }
@@ -959,6 +1058,10 @@ export default function App() {
     );
   } else if (activeBlogTab === 'revision') {
     blogContent = <BlogRevision onToast={showToast} />;
+  } else if (activeBlogTab === 'configuracion') {
+    blogContent = <BlogConfiguracion />;
+  } else if (activeBlogTab === 'programacion') {
+    blogContent = <BlogCalendario />;
   } else {
     blogContent = (
       <div className="panel">

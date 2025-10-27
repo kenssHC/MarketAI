@@ -226,10 +226,19 @@ textarea {
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   outline: none;
   border-color: rgba(56, 189, 248, 0.5);
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 1em;
 }
 
 textarea {
@@ -287,6 +296,11 @@ textarea {
   background: transparent;
   border: 1px dashed rgba(148, 163, 184, 0.3);
   color: rgba(226, 232, 240, 0.85);
+}
+
+.btn-pink {
+  background: #ec4899;
+  color: #fff;
 }
 
 .btn-small {
@@ -669,13 +683,9 @@ textarea {
   color: rgba(148, 163, 184, 0.75);
 }
 
-.btn-generate-image {
-  align-self: flex-start;
-}
-
 .hero-image {
   width: 100%;
-  max-width: 100%;
+  max-width: 300px;
   height: auto;
   border-radius: 12px;
   border: 1px solid rgba(148, 163, 184, 0.2);
@@ -735,6 +745,171 @@ textarea {
 .toast--warn {
   border-color: rgba(250, 204, 21, 0.6);
   color: #fde68a;
+}
+
+.config-section {
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.config-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px 32px;
+  align-items: flex-end;
+}
+
+.day-selector {
+  display: flex;
+  gap: 8px;
+}
+
+.day-selector__btn {
+  flex: 1;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(12, 20, 35, 0.8);
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.day-selector__btn:hover {
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+.day-selector__btn--active {
+  background: #ec4899;
+  border-color: #ec4899;
+  color: #fff;
+}
+
+.toggle-switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toggle-switch input[type="checkbox"] {
+  height: 0;
+  width: 0;
+  visibility: hidden;
+}
+
+.toggle-switch__label {
+  cursor: pointer;
+  text-indent: -9999px;
+  width: 50px;
+  height: 28px;
+  background: rgba(148, 163, 184, 0.3);
+  display: block;
+  border-radius: 100px;
+  position: relative;
+  margin-bottom: 0;
+}
+
+.toggle-switch__label:after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border-radius: 90px;
+  transition: 0.3s;
+}
+
+.toggle-switch input:checked + .toggle-switch__label {
+  background: #ec4899;
+}
+
+.toggle-switch input:checked + .toggle-switch__label:after {
+  left: calc(100% - 4px);
+  transform: translateX(-100%);
+}
+
+.toggle-switch__label:active:after {
+  width: 24px;
+}
+
+.config-footer {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+  display: flex;
+  justify-content: space-between;
+}
+
+.calendar-view-selector {
+  width: 200px;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 12px;
+  flex: 1;
+}
+
+.calendar-grid__day-header {
+  text-align: right;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.8);
+  padding-bottom: 8px;
+}
+
+.calendar-grid__day {
+  background: rgba(15, 23, 42, 0.75);
+  border-radius: 12px;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.calendar-grid__day-number {
+  text-align: right;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.7);
+}
+
+.calendar-item {
+  background: rgba(12, 20, 35, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.calendar-item__status {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #4ade80;
+  flex-shrink: 0;
+}
+
+.btn-generate-image {
+  align-self: flex-start;
 }
 
 @media (max-width: 1200px) {

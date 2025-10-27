@@ -1,6 +1,7 @@
 import express from 'express';
 import { query, getClient } from '../db.js';
 import callN8nWebhook from '../services/n8n.js';
+import config from '../config.js';
 
 const router = express.Router();
 
@@ -282,7 +283,11 @@ router.post('/:id/approve', async (req, res) => {
           preview_image_base64: previewImage.base64,
           preview_image_format: previewImage.format || 'png',
           preview_alt_text: previewImage.altText || null,
-          preview_visual_prompt: previewImage.visualPrompt || null
+          preview_visual_prompt: previewImage.visualPrompt || null,
+
+          wordpress_endpoint: config.wordpress.mediaEndpoint,
+          wordpress_auth_header: config.wordpress.authHeader,
+          wordpress_nonce: config.wordpress.nonce
         });
 
         // El workflow ya actualiza la BD con la URL de WordPress

@@ -35,6 +35,10 @@ services:
       # OpenAI (ajustar según tus necesidades)
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL=gpt-4
+
+      # WordPress
+      - WORDPRESS_MEDIA_ENDPOINT=https://larabs.pe/wp-json/wp/v2/media
+      - WORDPRESS_AUTH_HEADER=Basic dHVfYXBwX3VzZXI6dHVfYXBwX3Bhc3N3b3Jk
     volumes:
       - ./storage:/home/node/.n8n
       - ./workflows:/home/node/.n8n/workflows
@@ -42,6 +46,8 @@ services:
       - n8n-network
     depends_on:
       - postgres
+
+      
 
   postgres:
     image: postgres:latest
