@@ -6,6 +6,7 @@ import config from './config.js';
 import draftsRouter from './routes/drafts.js';
 import keywordsRouter from './routes/keywords.js';
 import { query } from './db.js';
+import { startScheduler } from './services/scheduler.js';
 
 const app = express();
 
@@ -43,4 +44,7 @@ app.use((err, _req, res, _next) => {
 
 app.listen(config.apiPort, () => {
   console.log(`Approval API listening on http://localhost:${config.apiPort}`);
+  
+  // Iniciar el scheduler de publicaciones programadas
+  startScheduler();
 });

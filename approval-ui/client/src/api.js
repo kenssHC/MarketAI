@@ -122,3 +122,35 @@ export async function generateDraftImage(id, body = {}) {
   });
   return handleResponse(response, 'No se pudo generar la imagen');
 }
+
+export async function scheduleDraft(id, body = {}) {
+  const response = await fetch(`/api/drafts/${id}/schedule`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify(body)
+  });
+  return handleResponse(response, 'No se pudo programar la publicación');
+}
+
+export async function publishDraftNow(id, body = {}) {
+  const response = await fetch(`/api/drafts/${id}/publish-now`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify(body)
+  });
+  return handleResponse(response, 'No se pudo publicar el draft');
+}
+
+export async function fetchScheduledPublications(params = {}) {
+  const response = await fetch(buildUrl('/api/drafts/scheduled', params));
+  return handleResponse(response, 'No se pudieron cargar las publicaciones programadas');
+}
+
+export async function cancelScheduledPublication(scheduleId, body = {}) {
+  const response = await fetch(`/api/drafts/schedule/${scheduleId}`, {
+    method: 'DELETE',
+    headers: jsonHeaders,
+    body: JSON.stringify(body)
+  });
+  return handleResponse(response, 'No se pudo cancelar la programación');
+}

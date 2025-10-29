@@ -11,7 +11,10 @@ import {
   updateDraft,
   approveDraft,
   returnDraft,
-  generateDraftImage
+  generateDraftImage,
+  scheduleDraft,
+  publishDraftNow,
+  fetchScheduledPublications
 } from './api';
 import './app.css';
 
@@ -39,40 +42,80 @@ function Toast({ toast }) {
   );
 }
 
-function BlogCalendario() {
-  const days = Array.from({ length: 31 }, (_, i) => i + 1);
-  const dayHeaders = ['vie', 'sáb', 'dom', 'lun', 'mar', 'mié', 'jue'];
+function BlogCalendario({ onToast }) {
+  const [scheduled, setScheduled] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadScheduled();
+  }, []);
+
+  async function loadScheduled() {
+    try {
+      setLoading(true);
+      const response = await fetchScheduledPublications({ status: 'pending', limit: 100 });
+      setScheduled(response.scheduled || []);
+    } catch (error) {
+      onToast(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="panel">
       <header className="panel__header">
         <div>
-          <h2>Calendario</h2>
-          <p className="muted">Vista mensual y semanal con filtros por estado y búsqueda</p>
+          <h2>📅 Publicaciones Programadas</h2>
+          <p className="muted">{scheduled.length} artículos programados</p>
         </div>
-        <div className="calendar-view-selector">
-          <select>
-            <option>Mes</option>
-            <option>Semana</option>
-          </select>
-        </div>
+        <button className="btn btn--secondary btn--sm" onClick={loadScheduled}>
+          🔄 Actualizar
+        </button>
       </header>
-      <div className="calendar-grid">
-        {dayHeaders.map(day => (
-          <div key={day} className="calendar-grid__day-header">{day}</div>
-        ))}
-        {days.map(day => (
-          <div key={day} className="calendar-grid__day">
-            <span className="calendar-grid__day-number">{day}</span>
-            {day === 2 && (
-              <div className="calendar-item">
-                Como vender más con inteligencia artific
-                <span className="calendar-item__status"></span>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      {loading ? (
+        <div className="empty-state">
+          <p>Cargando...</p>
+        </div>
+      ) : scheduled.length === 0 ? (
+        <div className="empty-state">
+          <p>No hay publicaciones programadas</p>
+          <p className="muted">Aprueba un artículo y programa su publicación</p>
+        </div>
+      ) : (
+        <div className="table-container">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Título</th>
+                <th>Fecha</th>
+                <th>Hora</th>
+                <th>Proyecto</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {scheduled.map(item => (
+                <tr key={item.id}>
+                  <td>
+                    <div className="draft-title-cell">
+                      {item.title || item.meta_title}
+                    </div>
+                  </td>
+                  <td>{new Date(item.scheduled_date).toLocaleDateString('es-ES')}</td>
+                  <td>{item.scheduled_time}</td>
+                  <td>{item.project_name || '-'}</td>
+                  <td>
+                    <span className={`badge badge--${item.status}`}>
+                      {item.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -778,6 +821,13 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
   const [approving, setApproving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [imageGenerating, setImageGenerating] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+  
+  // Estados de programación
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('09:00');
 
   const displayImageUrl = draft.preview_image_data_url || draft.featured_image_url || null;
   const displayAltText = draft.preview_image_alt || draft.featured_image_alt || 'Imagen generada';
@@ -870,6 +920,60 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
       onToast(error.message, 'error');
     } finally {
       setImageGenerating(false);
+    }
+  }
+
+  async function handlePublishNow() {
+    try {
+      setPublishing(true);
+      await approveDraft(draft.id, {
+        reviewer: 'editor',
+        previewImage: draft.preview_image_base64 ? {
+          base64: draft.preview_image_base64,
+          format: draft.preview_image_format,
+          altText: draft.preview_image_alt,
+          visualPrompt: draft.preview_image_visual_prompt
+        } : undefined
+      });
+      const response = await publishDraftNow(draft.id);
+      onToast(`Publicado exitosamente: ${response.wordpress_post_url}`, 'success');
+      onClose();
+    } catch (error) {
+      console.error(error);
+      onToast(error.message, 'error');
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  async function handleSchedule() {
+    if (!scheduledDate) {
+      onToast('Selecciona una fecha', 'error');
+      return;
+    }
+    try {
+      setScheduling(true);
+      await approveDraft(draft.id, {
+        reviewer: 'editor',
+        previewImage: draft.preview_image_base64 ? {
+          base64: draft.preview_image_base64,
+          format: draft.preview_image_format,
+          altText: draft.preview_image_alt,
+          visualPrompt: draft.preview_image_visual_prompt
+        } : undefined
+      });
+      await scheduleDraft(draft.id, {
+        scheduled_date: scheduledDate,
+        scheduled_time: scheduledTime,
+        created_by: 'editor'
+      });
+      onToast(`Programado para ${scheduledDate} ${scheduledTime}`, 'success');
+      onClose();
+    } catch (error) {
+      console.error(error);
+      onToast(error.message, 'error');
+    } finally {
+      setScheduling(false);
     }
   }
 
@@ -1005,6 +1109,64 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
           </section>
         </div>
 
+        <div className="editor-section">
+          <h3>📅 Publicación</h3>
+          <div className="publish-options">
+            <button 
+              className="btn btn-publish-now" 
+              onClick={handlePublishNow} 
+              disabled={publishing || !draft.id}
+            >
+              {publishing ? 'Publicando...' : '🚀 Publicar Ahora'}
+            </button>
+            <button 
+              className="btn btn-schedule" 
+              onClick={() => setShowScheduleForm(!showScheduleForm)}
+              disabled={scheduling}
+            >
+              📆 Programar Publicación
+            </button>
+          </div>
+          
+          {showScheduleForm && (
+            <div className="schedule-form">
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="scheduled-date">Fecha</label>
+                  <input
+                    id="scheduled-date"
+                    type="date"
+                    value={scheduledDate}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="scheduled-time">Hora</label>
+                  <input
+                    id="scheduled-time"
+                    type="time"
+                    value={scheduledTime}
+                    onChange={(e) => setScheduledTime(e.target.value)}
+                  />
+                </div>
+              </div>
+              {scheduledDate && (
+                <p className="schedule-info">
+                  📌 Se publicará el {new Date(scheduledDate).toLocaleDateString('es-ES')} a las {scheduledTime}
+                </p>
+              )}
+              <button 
+                className="btn btn-primary" 
+                onClick={handleSchedule} 
+                disabled={scheduling || !scheduledDate}
+              >
+                {scheduling ? 'Programando...' : 'Confirmar Programación'}
+              </button>
+            </div>
+          )}
+        </div>
+
         <footer className="editor-footer">
           <div className="spacer" />
           <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
@@ -1061,7 +1223,7 @@ export default function App() {
   } else if (activeBlogTab === 'configuracion') {
     blogContent = <BlogConfiguracion />;
   } else if (activeBlogTab === 'programacion') {
-    blogContent = <BlogCalendario />;
+    blogContent = <BlogCalendario onToast={showToast} />;
   } else {
     blogContent = (
       <div className="panel">

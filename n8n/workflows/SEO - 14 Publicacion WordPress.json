@@ -1,0 +1,403 @@
+{
+  "name": "SEO - 14 Publicacion WordPress",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "seo/publicar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-1840, 288],
+      "id": "webhook-publicar",
+      "webhookId": "publicar-wordpress-001"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  d.id AS draft_id,\n  d.idea_id,\n  d.keyword_cluster_id,\n  d.title,\n  d.meta_title,\n  d.meta_description,\n  d.tags,\n  d.content_markdown,\n  d.content_html,\n  d.word_count,\n  d.featured_image_url,\n  d.featured_image_alt,\n  d.featured_image_prompt,\n  d.wordpress_post_id,\n  d.wordpress_post_url,\n  d.status AS draft_status,\n  d.approved_at,\n  d.approved_by,\n  i.idea_title,\n  i.categoria,\n  k.cluster_name,\n  k.keyword_principal,\n  k.keywords_secundarias,\n  k.project_name\nFROM drafts d\nLEFT JOIN ideas i ON i.id = d.idea_id\nLEFT JOIN keywords k ON k.id = d.keyword_cluster_id\nWHERE d.id = '{{ $json.body.draft_id }}'\n  AND d.status IN ('approved', 'review')\nLIMIT 1",
+        "options": {}
+      },
+      "name": "Obtener Draft Completo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [-1632, 288],
+      "id": "obtener-draft",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "check-draft-exists",
+              "leftValue": "={{ $items().length }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Draft Existe",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-1424, 288],
+      "id": "validar-draft"
+    },
+    {
+      "parameters": {
+        "jsCode": "const draft = $json;\n\nconst errors = [];\n\nif (!draft.title || draft.title.trim() === '') {\n  errors.push('Falta título del artículo');\n}\n\nif (!draft.content_html || draft.content_html.trim() === '') {\n  errors.push('Falta contenido HTML');\n}\n\nif (!draft.meta_title || draft.meta_title.trim() === '') {\n  errors.push('Falta meta título');\n}\n\nif (!draft.meta_description || draft.meta_description.trim() === '') {\n  errors.push('Falta meta descripción');\n}\n\nif (errors.length > 0) {\n  throw new Error('Validación fallida: ' + errors.join(', '));\n}\n\n// Normalizar tags\nlet tagsArray = [];\nif (draft.tags) {\n  if (Array.isArray(draft.tags)) {\n    tagsArray = draft.tags;\n  } else if (typeof draft.tags === 'string') {\n    try {\n      tagsArray = JSON.parse(draft.tags);\n    } catch (e) {\n      tagsArray = draft.tags.split(',').map(t => t.trim()).filter(Boolean);\n    }\n  }\n}\n\n// Normalizar keywords secundarias\nlet keywordsArray = [];\nif (draft.keywords_secundarias) {\n  if (Array.isArray(draft.keywords_secundarias)) {\n    keywordsArray = draft.keywords_secundarias;\n  } else if (typeof draft.keywords_secundarias === 'string') {\n    try {\n      keywordsArray = JSON.parse(draft.keywords_secundarias);\n    } catch (e) {\n      keywordsArray = [];\n    }\n  }\n}\n\nreturn {\n  json: {\n    ...draft,\n    tags_array: tagsArray,\n    keywords_array: keywordsArray,\n    validated: true,\n    validation_timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "name": "Validar Datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1216, 176],
+      "id": "validar-datos"
+    },
+    {
+      "parameters": {
+        "jsCode": "const draft = $json;\nconst body = $items('Webhook', 0)[0].json.body || {};\n\n// Obtener credenciales de WordPress\nconst wpEndpoint = body.wordpress_endpoint \n  || draft.wordpress_endpoint \n  || $env.WORDPRESS_MEDIA_ENDPOINT \n  || 'https://larabs.pe/wp-json/wp/v2';\n\nconst wpAuthHeader = body.wordpress_auth_header \n  || draft.wordpress_auth_header \n  || $env.WORDPRESS_AUTH_HEADER;\n\nconst wpNonce = body.wordpress_nonce \n  || draft.wordpress_nonce \n  || $env.WORDPRESS_NONCE;\n\nif (!wpAuthHeader) {\n  throw new Error('Falta wordpress_auth_header para autenticación');\n}\n\n// Construir el payload de WordPress\nconst postPayload = {\n  title: draft.title,\n  content: draft.content_html,\n  excerpt: draft.meta_description || '',\n  status: body.wp_status || 'publish',\n  comment_status: 'open',\n  ping_status: 'open'\n};\n\n// Agregar featured_media si existe\nif (draft.wordpress_media_id) {\n  postPayload.featured_media = parseInt(draft.wordpress_media_id);\n} else if (draft.featured_image_url && draft.featured_image_url.includes('wp-content')) {\n  // Intentar extraer el ID de la URL de WordPress si está disponible\n  const urlParts = draft.featured_image_url.split('/');\n  const possibleId = urlParts[urlParts.length - 1].replace(/\\D/g, '');\n  if (possibleId) {\n    postPayload.featured_media = parseInt(possibleId);\n  }\n}\n\n// Agregar meta fields para Yoast SEO\npostPayload.meta = {\n  _yoast_wpseo_title: draft.meta_title || draft.title,\n  _yoast_wpseo_metadesc: draft.meta_description || ''\n};\n\n// Tags como strings (WordPress los convertirá)\nif (draft.tags_array && draft.tags_array.length > 0) {\n  postPayload.tags = draft.tags_array;\n}\n\n// URL base para posts\nconst postsEndpoint = wpEndpoint.replace(/\\/media$/, '') + '/posts';\n\nreturn {\n  json: {\n    ...draft,\n    wordpress_payload: postPayload,\n    wordpress_posts_endpoint: postsEndpoint,\n    wordpress_auth_header: wpAuthHeader,\n    wordpress_nonce: wpNonce,\n    prepared_at: new Date().toISOString()\n  }\n};"
+      },
+      "name": "Preparar Payload WordPress",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1008, 176],
+      "id": "preparar-payload"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.wordpress_posts_endpoint }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.wordpress_auth_header }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.wordpress_payload) }}",
+        "options": {}
+      },
+      "name": "Publicar en WordPress",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-800, 176],
+      "id": "publicar-wordpress"
+    },
+    {
+      "parameters": {
+        "jsCode": "const wpResponse = $json;\nconst draftData = $items('Preparar Payload WordPress', 0)[0].json;\n\n// Extraer datos de la respuesta de WordPress\nconst wpPostId = wpResponse.id || null;\nconst wpPostUrl = wpResponse.link || wpResponse.guid?.rendered || null;\nconst wpStatus = wpResponse.status || 'publish';\n\nif (!wpPostId) {\n  throw new Error('WordPress no devolvió ID del post');\n}\n\nreturn {\n  json: {\n    draft_id: draftData.draft_id,\n    wordpress_post_id: wpPostId,\n    wordpress_post_url: wpPostUrl,\n    wordpress_status: wpStatus,\n    published_at: new Date().toISOString(),\n    wordpress_response: wpResponse\n  }\n};"
+      },
+      "name": "Extraer Datos WordPress",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-592, 176],
+      "id": "extraer-wp-data"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE drafts\nSET \n  wordpress_post_id = {{ $json.wordpress_post_id }},\n  wordpress_post_url = '{{ $json.wordpress_post_url }}',\n  published_at = NOW(),\n  status = 'published',\n  updated_at = NOW()\nWHERE id = '{{ $json.draft_id }}'\nRETURNING id, wordpress_post_id, wordpress_post_url, published_at, status",
+        "options": {}
+      },
+      "name": "Actualizar Draft",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [-384, 176],
+      "id": "actualizar-draft",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE scheduled_publications\nSET \n  status = 'published',\n  wordpress_post_id = {{ $items('Extraer Datos WordPress', 0)[0].json.wordpress_post_id }},\n  wordpress_post_url = '{{ $items('Extraer Datos WordPress', 0)[0].json.wordpress_post_url }}',\n  published_at = NOW(),\n  updated_at = NOW()\nWHERE draft_id = '{{ $items('Extraer Datos WordPress', 0)[0].json.draft_id }}'\n  AND status = 'pending'\nRETURNING id, draft_id, status, published_at",
+        "options": {}
+      },
+      "name": "Actualizar Scheduled Publications",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [-176, 176],
+      "id": "actualizar-scheduled",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const wpData = $items('Extraer Datos WordPress', 0)[0].json;\nconst draftUpdate = $items('Actualizar Draft', 0)[0].json;\nconst scheduledUpdate = $items('Actualizar Scheduled Publications', 0)[0].json || {};\nconst originalDraft = $items('Validar Datos', 0)[0].json;\n\nconst jobLog = {\n  job_name: 'wordpress_publish',\n  job_type: 'wordpress_publish',\n  status: 'success',\n  draft_id: wpData.draft_id,\n  idea_id: originalDraft.idea_id || null,\n  keyword_cluster_id: originalDraft.keyword_cluster_id || null,\n  started_at: originalDraft.validation_timestamp || new Date().toISOString(),\n  completed_at: new Date().toISOString(),\n  duration_ms: null,\n  input_data: {\n    draft_id: wpData.draft_id,\n    title: originalDraft.title,\n    wordpress_endpoint: originalDraft.wordpress_posts_endpoint\n  },\n  output_data: {\n    wordpress_post_id: wpData.wordpress_post_id,\n    wordpress_post_url: wpData.wordpress_post_url,\n    wordpress_status: wpData.wordpress_status,\n    scheduled_updated: !!scheduledUpdate.id\n  },\n  metadata: {\n    draft_title: originalDraft.title,\n    project_name: originalDraft.project_name,\n    word_count: originalDraft.word_count,\n    has_featured_image: !!originalDraft.featured_image_url\n  }\n};\n\nif (originalDraft.validation_timestamp) {\n  const start = new Date(originalDraft.validation_timestamp).getTime();\n  const end = new Date().getTime();\n  jobLog.duration_ms = end - start;\n}\n\nreturn {\n  json: jobLog\n};"
+      },
+      "name": "Preparar Job Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [32, 176],
+      "id": "preparar-job-log"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO jobs_log (\n  job_name,\n  job_type,\n  status,\n  draft_id,\n  idea_id,\n  keyword_cluster_id,\n  started_at,\n  completed_at,\n  duration_ms,\n  input_data,\n  output_data,\n  metadata\n) VALUES (\n  '{{ $json.job_name }}',\n  '{{ $json.job_type }}',\n  '{{ $json.status }}',\n  {{ $json.draft_id ? \"'\" + $json.draft_id + \"'\" : \"NULL\" }},\n  {{ $json.idea_id ? \"'\" + $json.idea_id + \"'\" : \"NULL\" }},\n  {{ $json.keyword_cluster_id ? \"'\" + $json.keyword_cluster_id + \"'\" : \"NULL\" }},\n  '{{ $json.started_at }}',\n  '{{ $json.completed_at }}',\n  {{ $json.duration_ms || \"NULL\" }},\n  '{{ JSON.stringify($json.input_data) }}'::jsonb,\n  '{{ JSON.stringify($json.output_data) }}'::jsonb,\n  '{{ JSON.stringify($json.metadata) }}'::jsonb\n)\nRETURNING id, job_name, status, completed_at",
+        "options": {}
+      },
+      "name": "Insertar Job Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [240, 176],
+      "id": "insertar-job-log",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const wpData = $items('Extraer Datos WordPress', 0)[0].json;\nconst draftData = $items('Validar Datos', 0)[0].json;\nconst jobLog = $items('Insertar Job Log', 0)[0].json;\n\nreturn {\n  json: {\n    status: 'success',\n    message: 'Artículo publicado exitosamente en WordPress',\n    draft_id: wpData.draft_id,\n    wordpress_post_id: wpData.wordpress_post_id,\n    wordpress_post_url: wpData.wordpress_post_url,\n    wordpress_status: wpData.wordpress_status,\n    published_at: wpData.published_at,\n    job_log_id: jobLog.id,\n    draft_title: draftData.title,\n    project_name: draftData.project_name\n  }\n};"
+      },
+      "name": "Preparar Respuesta Final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [448, 176],
+      "id": "preparar-respuesta"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [656, 176],
+      "id": "respond-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  json: {\n    status: 'error',\n    message: 'Draft no encontrado o no está aprobado',\n    draft_id: $items('Webhook', 0)[0].json.body.draft_id || null\n  }\n};"
+      },
+      "name": "Error Draft No Encontrado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1216, 400],
+      "id": "error-no-draft"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {
+          "responseCode": 404
+        }
+      },
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [-1008, 400],
+      "id": "respond-error"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Obtener Draft Completo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Draft Completo": {
+      "main": [
+        [
+          {
+            "node": "Draft Existe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Existe": {
+      "main": [
+        [
+          {
+            "node": "Validar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Draft No Encontrado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Datos": {
+      "main": [
+        [
+          {
+            "node": "Preparar Payload WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Payload WordPress": {
+      "main": [
+        [
+          {
+            "node": "Publicar en WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publicar en WordPress": {
+      "main": [
+        [
+          {
+            "node": "Extraer Datos WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Datos WordPress": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Draft": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Scheduled Publications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Scheduled Publications": {
+      "main": [
+        [
+          {
+            "node": "Preparar Job Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Job Log": {
+      "main": [
+        [
+          {
+            "node": "Insertar Job Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar Job Log": {
+      "main": [
+        [
+          {
+            "node": "Preparar Respuesta Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Respuesta Final": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Draft No Encontrado": {
+      "main": [
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "001",
+  "meta": {
+    "instanceId": "marketai-seo"
+  },
+  "id": "workflow-14-publicacion-wordpress",
+  "tags": []
+}
+

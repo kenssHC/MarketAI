@@ -4,6 +4,14 @@
 
 Este directorio contiene las migraciones SQL para el módulo SEO de MarketAI. Las migraciones se ejecutan automáticamente cuando se inicia el contenedor de PostgreSQL por primera vez.
 
+## 📦 Migraciones Disponibles
+
+| # | Archivo | Descripción | Fecha |
+|---|---------|-------------|-------|
+| 001 | `001_initial_schema.sql` | Esquema base: keywords, ideas, drafts, jobs_log | Oct 2024 |
+| 002 | `002_add_research_reports.sql` | Tabla research_reports para investigación profunda | Oct 2024 |
+| 003 | `003_add_scheduled_publications.sql` | Sistema de publicación programada y campos WordPress | Oct 2024 |
+
 ## 🗄️ Esquema de Base de Datos
 
 ### Diagrama de Relaciones
@@ -31,17 +39,19 @@ Este directorio contiene las migraciones SQL para el módulo SEO de MarketAI. La
 │ - status        │    │
 └─────────────────┘    │
                        │  FK
-┌─────────────────┐    │
-│     drafts      │    │
-│                 │    │
-│ - id (PK)       │    │
-│ - idea_id       ├────┘
-│ - title         │
-│ - content_md    │
-│ - content_html  │
-│ - qa_passed     │
-│ - status        │
-│ - wp_post_url   │
+┌─────────────────┐    │                    ┌────────────────────────┐
+│     drafts      │    │                    │ scheduled_publications │
+│                 │    │                    │                        │
+│ - id (PK)       │    │               ┌───►│ - id (PK)              │
+│ - idea_id       ├────┘               │    │ - draft_id (FK)        │
+│ - title         │                    │    │ - scheduled_date       │
+│ - content_md    │◄───────────────────┘    │ - scheduled_time       │
+│ - content_html  │                         │ - status               │
+│ - qa_passed     │                         │ - wordpress_post_id    │
+│ - status        │                         │ - published_at         │
+│ - wp_post_id    │                         │ - attempts             │
+│ - wp_post_url   │                         │ - last_error           │
+│ - scheduled_..  │                         └────────────────────────┘
 └─────────────────┘
 
 ┌─────────────────┐
@@ -54,6 +64,16 @@ Este directorio contiene las migraciones SQL para el módulo SEO de MarketAI. La
 │ - duration_ms   │
 │ - error_message │
 └─────────────────┘
+
+┌──────────────────┐
+│ research_reports │
+│                  │
+│ - id (PK)        │
+│ - idea_id (FK)   │
+│ - research_json  │
+│ - sources        │
+│ - status         │
+└──────────────────┘
 ```
 
 ## 📊 Tablas Principales
@@ -119,7 +139,31 @@ Almacena los borradores de artículos con todo el contenido y metadatos SEO.
 
 ---
 
-### 4. **jobs_log**
+### 4. **scheduled_publications** (Nuevo en v003)
+Gestiona la publicación programada de artículos aprobados en WordPress.
+
+**Campos principales:**
+- **Programación:**
+  - `scheduled_date`, `scheduled_time`: Fecha y hora de publicación
+  - `scheduled_datetime`: Columna computada (date + time) para consultas eficientes
+  
+- **Estado:**
+  - `status`: 'pending', 'published', 'failed', 'cancelled'
+  - `attempts`: Número de intentos de publicación
+  - `last_attempt_at`, `last_error`: Para debugging
+  
+- **WordPress:**
+  - `wordpress_post_id`: ID del post publicado en WordPress
+  - `wordpress_post_url`: URL completa del post publicado
+  - `wordpress_status`: Estado en WordPress ('publish', 'draft', 'future', 'private')
+
+**Relación:** Cada publicación programada referencia a un `draft_id` (relación 1:1)
+
+**Vista disponible:** `v_upcoming_publications` - Lista de publicaciones pendientes con metadatos del draft
+
+---
+
+### 5. **jobs_log**
 Registro detallado de todos los trabajos ejecutados en el pipeline.
 
 **Campos principales:**
@@ -261,6 +305,50 @@ FROM jobs_log
 WHERE created_at >= NOW() - INTERVAL '7 days'
 GROUP BY job_type, status
 ORDER BY job_type, status;
+```
+
+### Ver publicaciones programadas para los próximos 7 días
+```sql
+SELECT * FROM v_upcoming_publications
+WHERE scheduled_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
+ORDER BY scheduled_datetime ASC;
+```
+
+### Programar una nueva publicación
+```sql
+INSERT INTO scheduled_publications (draft_id, scheduled_date, scheduled_time, created_by)
+VALUES (
+    'uuid-del-draft',
+    '2025-11-01',
+    '09:00:00',
+    'editor@example.com'
+);
+```
+
+### Obtener publicaciones listas para ejecutar AHORA
+```sql
+SELECT sp.*, d.title, d.content_html, d.featured_image_url
+FROM scheduled_publications sp
+JOIN drafts d ON d.id = sp.draft_id
+WHERE sp.status = 'pending'
+  AND sp.scheduled_datetime <= CURRENT_TIMESTAMP
+ORDER BY sp.scheduled_datetime ASC
+LIMIT 10;
+```
+
+### Ver calendario del mes actual con conteo de publicaciones por día
+```sql
+SELECT 
+    scheduled_date,
+    COUNT(*) as num_publicaciones,
+    STRING_AGG(d.title, ' | ') as titulos
+FROM scheduled_publications sp
+JOIN drafts d ON d.id = sp.draft_id
+WHERE sp.scheduled_date >= DATE_TRUNC('month', CURRENT_DATE)
+  AND sp.scheduled_date < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+  AND sp.status = 'pending'
+GROUP BY sp.scheduled_date
+ORDER BY sp.scheduled_date;
 ```
 
 ---

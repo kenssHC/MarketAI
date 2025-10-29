@@ -427,4 +427,204 @@ router.post('/:id/image', async (req, res) => {
   }
 });
 
+// Programar publicación
+router.post('/:id/schedule', async (req, res) => {
+  const { id } = req.params;
+  const { scheduled_date, scheduled_time, created_by } = req.body;
+
+  try {
+    if (!scheduled_date) {
+      return res.status(400).json({ message: 'scheduled_date es requerido' });
+    }
+
+    // Validar que la fecha sea futura
+    const scheduledDateTime = new Date(`${scheduled_date}T${scheduled_time || '09:00:00'}`);
+    if (scheduledDateTime <= new Date()) {
+      return res.status(400).json({ message: 'La fecha debe ser futura' });
+    }
+
+    // Verificar que el draft existe y está aprobado
+    const draftCheck = await query(
+      'SELECT id, status FROM drafts WHERE id = $1',
+      [id]
+    );
+
+    if (!draftCheck.rowCount) {
+      return res.status(404).json({ message: 'Draft no encontrado' });
+    }
+
+    if (draftCheck.rows[0].status !== 'approved') {
+      return res.status(400).json({ message: 'El draft debe estar aprobado para programar' });
+    }
+
+    // Verificar si ya tiene una programación
+    const existingSchedule = await query(
+      'SELECT id FROM scheduled_publications WHERE draft_id = $1 AND status = $2',
+      [id, 'pending']
+    );
+
+    if (existingSchedule.rowCount > 0) {
+      return res.status(400).json({ message: 'Este draft ya tiene una publicación programada' });
+    }
+
+    // Crear programación
+    const result = await query(
+      `INSERT INTO scheduled_publications (draft_id, scheduled_date, scheduled_time, created_by, status)
+       VALUES ($1, $2, $3, $4, 'pending')
+       RETURNING id, draft_id, scheduled_date, scheduled_time, status, created_at`,
+      [id, scheduled_date, scheduled_time || '09:00:00', created_by || 'system']
+    );
+
+    res.json({
+      message: 'Publicación programada exitosamente',
+      schedule: result.rows[0]
+    });
+  } catch (error) {
+    console.error('[api] failed to schedule publication', error);
+    res.status(500).json({ message: 'Error al programar la publicación', details: error.message });
+  }
+});
+
+// Publicar inmediatamente
+router.post('/:id/publish-now', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Verificar que el draft existe y está aprobado
+    const draftCheck = await query(
+      'SELECT id, status, title FROM drafts WHERE id = $1',
+      [id]
+    );
+
+    if (!draftCheck.rowCount) {
+      return res.status(404).json({ message: 'Draft no encontrado' });
+    }
+
+    if (draftCheck.rows[0].status !== 'approved') {
+      return res.status(400).json({ message: 'El draft debe estar aprobado para publicar' });
+    }
+
+    // Llamar al workflow 14
+    const wpResponse = await callN8nWebhook('seo/publicar', {
+      draft_id: id,
+      wordpress_endpoint: config.wordpress.mediaEndpoint?.replace('/media', ''),
+      wordpress_auth_header: config.wordpress.authHeader,
+      wordpress_nonce: config.wordpress.nonce
+    });
+
+    if (wpResponse.status === 'success') {
+      res.json({
+        message: 'Artículo publicado exitosamente',
+        wordpress_post_id: wpResponse.wordpress_post_id,
+        wordpress_post_url: wpResponse.wordpress_post_url,
+        published_at: wpResponse.published_at
+      });
+    } else {
+      res.status(500).json({
+        message: 'Error al publicar en WordPress',
+        details: wpResponse.message || 'Error desconocido'
+      });
+    }
+  } catch (error) {
+    console.error('[api] failed to publish now', error);
+    res.status(500).json({ message: 'Error al publicar', details: error.message });
+  }
+});
+
+// Obtener publicaciones programadas
+router.get('/scheduled', async (req, res) => {
+  const { status, date_from, date_to, limit } = req.query;
+
+  try {
+    let whereClause = '1=1';
+    const params = [];
+
+    if (status) {
+      params.push(status);
+      whereClause += ` AND sp.status = $${params.length}`;
+    }
+
+    if (date_from) {
+      params.push(date_from);
+      whereClause += ` AND sp.scheduled_date >= $${params.length}`;
+    }
+
+    if (date_to) {
+      params.push(date_to);
+      whereClause += ` AND sp.scheduled_date <= $${params.length}`;
+    }
+
+    const limitValue = Math.min(parseInt(limit) || 50, 100);
+
+    const result = await query(
+      `SELECT 
+        sp.id,
+        sp.draft_id,
+        sp.scheduled_date,
+        sp.scheduled_time,
+        sp.scheduled_datetime,
+        sp.status,
+        sp.wordpress_post_id,
+        sp.wordpress_post_url,
+        sp.published_at,
+        sp.attempts,
+        sp.last_error,
+        sp.created_at,
+        d.title,
+        d.meta_title,
+        d.featured_image_url,
+        d.status as draft_status,
+        k.project_name,
+        k.cluster_name
+      FROM scheduled_publications sp
+      JOIN drafts d ON d.id = sp.draft_id
+      LEFT JOIN keywords k ON k.id = d.keyword_cluster_id
+      WHERE ${whereClause}
+      ORDER BY sp.scheduled_datetime ASC
+      LIMIT ${limitValue}`,
+      params
+    );
+
+    res.json({
+      total: result.rowCount,
+      scheduled: result.rows
+    });
+  } catch (error) {
+    console.error('[api] failed to get scheduled publications', error);
+    res.status(500).json({ message: 'Error al obtener publicaciones programadas', details: error.message });
+  }
+});
+
+// Cancelar publicación programada
+router.delete('/schedule/:schedule_id', async (req, res) => {
+  const { schedule_id } = req.params;
+  const { reason, cancelled_by } = req.body;
+
+  try {
+    const result = await query(
+      `UPDATE scheduled_publications
+       SET status = 'cancelled',
+           cancelled_at = NOW(),
+           cancelled_by = $2,
+           cancellation_reason = $3,
+           updated_at = NOW()
+       WHERE id = $1 AND status = 'pending'
+       RETURNING id, draft_id, status`,
+      [schedule_id, cancelled_by || 'system', reason || 'Cancelado por el usuario']
+    );
+
+    if (!result.rowCount) {
+      return res.status(404).json({ message: 'Programación no encontrada o ya fue procesada' });
+    }
+
+    res.json({
+      message: 'Publicación cancelada',
+      schedule: result.rows[0]
+    });
+  } catch (error) {
+    console.error('[api] failed to cancel schedule', error);
+    res.status(500).json({ message: 'Error al cancelar la programación', details: error.message });
+  }
+});
+
 export default router;
