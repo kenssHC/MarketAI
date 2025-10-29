@@ -236,7 +236,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Bearer OPENAI_API_KEY"
+              "value": "=Bearer OpenAI_API_KEY"
             }
           ]
         },
@@ -300,9 +300,9 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE drafts\nSET\n  featured_image_url    = $1,\n  featured_image_alt    = $2,\n  featured_image_prompt = $3,\n  updated_at            = NOW()\nWHERE id = $4::uuid\nRETURNING id, featured_image_url, featured_image_alt, featured_image_prompt, updated_at;",
+        "query": "UPDATE drafts\nSET\n  featured_image_url    = $1,\n  featured_image_alt    = $2,\n  featured_image_prompt = $3,\n  wordpress_media_id    = $4,\n  updated_at            = NOW()\nWHERE id = $5::uuid\nRETURNING id, featured_image_url, featured_image_alt, featured_image_prompt, wordpress_media_id, updated_at;",
         "options": {
-          "queryReplacement": "$1 = {{ $json.wordpress_media_url || $json.image_url }}, $2 = {{ $json.image_alt || 'Imagen generada' }}, $3 = {{ $json.visual_prompt || $json.image_prompt || '' }}, $4 = {{ $json.draft_id }}"
+          "queryReplacement": "=$1 = {{ $json.wordpress_media_url || $json.image_url }},\n$2 = {{ $json.image_alt || 'Imagen generada' }},\n$3 = {{ $json.visual_prompt || '' }},\n$4 = {{ $json.wordpress_media_id }},\n$5 = {{ $json.request_body.draft_id }},"
         }
       },
       "name": "Actualizar Draft Imagen1",
@@ -470,7 +470,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Basic ADMIN_USER:ADMIN_PASSWORD_ENCODED_BASE64"
+              "value": "=Basic WP_APP_USER:WP_APP_PASSWORD_ENCODED_BASE64"
             }
           ]
         },
@@ -825,7 +825,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "e329dfe8-f1e4-46af-af10-194eac89b5f2",
+  "versionId": "2c86e894-5544-4849-9acf-14b0125d9f1b",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
