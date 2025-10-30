@@ -1016,8 +1016,8 @@ textarea {
 }
 
 .calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   flex: 1;
 }
@@ -1121,6 +1121,7 @@ textarea {
 .calendar-days {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: 180px;
   gap: 12px;
   padding: 0;
 }
@@ -1136,6 +1137,7 @@ textarea {
   flex-direction: column;
   transition: all 0.3s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  height: 100%;
 }
 
 .calendar-day:hover {
@@ -1227,10 +1229,11 @@ textarea {
 }
 
 .calendar-draft-title {
-  display: block;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
   color: #f1f5f9;
   font-weight: 500;
   line-height: 1.4;
