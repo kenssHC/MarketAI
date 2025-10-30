@@ -3,8 +3,39 @@ import multer from 'multer';
 import { parse as parseCsv } from 'csv-parse/sync';
 import { getClient, query } from '../db.js';
 import callN8nWebhook from '../services/n8n.js';
+import config from '../config.js';
 
 const router = express.Router();
+
+// Helper para mapear drafts a camelCase (consistente con drafts.js)
+function mapDraftRow(row) {
+  return {
+    id: row.id,
+    ideaId: row.idea_id,
+    keywordClusterId: row.keyword_cluster_id,
+    title: row.title,
+    metaTitle: row.meta_title,
+    metaDescription: row.meta_description,
+    tags: row.tags || [],
+    contentMarkdown: row.content_markdown,
+    contentHtml: row.content_html,
+    wordCount: row.word_count,
+    qaPassed: row.qa_passed,
+    qaReport: row.qa_report,
+    qaCheckedAt: row.qa_checked_at,
+    status: row.status,
+    rejectionReason: row.rejection_reason,
+    featuredImageUrl: row.featured_image_url,
+    featuredImageAlt: row.featured_image_alt,
+    featuredImagePrompt: row.featured_image_prompt,
+    linkedinCopy: row.linkedin_copy,
+    facebookCopy: row.facebook_copy,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    approvedAt: row.approved_at,
+    approvedBy: row.approved_by
+  };
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -245,6 +276,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 router.post('/:keywordId/generate', async (req, res) => {
   const { keywordId } = req.params;
   const projectOverride = req.body?.projectName || req.body?.project_name || null;
+  const generateImage = req.body?.generateImage || false;
 
   try {
     const keywordResult = await query(
@@ -315,12 +347,8 @@ router.post('/:keywordId/generate', async (req, res) => {
       return res.status(400).json({ message: 'La keyword no pudo ser procesada por el clustering' });
     }
 
-    await callN8nWebhook('seo/ideas-generation', {
-      keyword_cluster_id: clusterId,
-      limit: 1
-    });
-
-    const ideasResult = await query(
+    // Verificar si ya existen ideas para este cluster
+    const existingIdeas = await query(
       `SELECT id, idea_title, categoria, status, created_at
        FROM ideas
        WHERE keyword_cluster_id = $1
@@ -329,13 +357,47 @@ router.post('/:keywordId/generate', async (req, res) => {
       [clusterId]
     );
 
+    // Solo llamar a ideas-generation si NO hay ideas
+    if (!existingIdeas.rowCount) {
+      await callN8nWebhook('seo/ideas-generation', {
+        keyword_cluster_id: clusterId,
+        limit: 1
+      });
+    }
+
+    // Obtener las ideas (existentes o recién creadas)
+    const ideasResult = existingIdeas.rowCount > 0 
+      ? existingIdeas
+      : await query(
+          `SELECT id, idea_title, categoria, status, created_at
+           FROM ideas
+           WHERE keyword_cluster_id = $1
+           ORDER BY created_at DESC
+           LIMIT 20`,
+          [clusterId]
+        );
+
     if (!ideasResult.rowCount) {
       return res.status(400).json({ message: 'No se generaron ideas para esta keyword' });
     }
 
+    // Buscar una idea que sea "No requiere investigación" Y que esté "pending"
     const idea =
-      ideasResult.rows.find((row) => row.categoria?.toLowerCase().includes('no requiere'))
+      ideasResult.rows.find((row) => 
+        row.categoria?.toLowerCase().includes('no requiere') && 
+        row.status === 'pending'
+      )
+      || ideasResult.rows.find((row) => row.status === 'pending')
       || ideasResult.rows[0];
+
+    // Verificar que la idea esté en estado pending
+    if (!idea || idea.status !== 'pending') {
+      return res.status(400).json({ 
+        message: 'No hay ideas pendientes disponibles para generar un artículo. Todas las ideas ya fueron procesadas.',
+        ideasAvailable: ideasResult.rowCount,
+        ideasPending: ideasResult.rows.filter(r => r.status === 'pending').length
+      });
+    }
 
     await callN8nWebhook('seo/redaccion/simple', {
       idea_id: idea.id,
@@ -368,34 +430,58 @@ router.post('/:keywordId/generate', async (req, res) => {
       return res.status(400).json({ message: 'No se pudo generar el borrador del articulo' });
     }
 
-    const draft = draftResult.rows[0];
+    let draft = mapDraftRow(draftResult.rows[0]);
 
-    try {
-      await callN8nWebhook('seo/qa', {
-        draft_id: draft.id,
-        force: true,
-        limit: 1
-      });
+    // Generate image if requested
+    let imagePreview = null;
+    if (generateImage) {
+      try {
+        const imageResponse = await callN8nWebhook('seo/imagenes/generar', {
+          draft_id: draft.id,
+          limit: 1,
+          force: true,
+          upload_to_wordpress: true,
+          wordpress_endpoint: config.wordpress?.mediaEndpoint,
+          wordpress_auth_header: config.wordpress?.authHeader,
+          wordpress_nonce: config.wordpress?.nonce
+        });
 
-      const qaRefresh = await query(
-        `SELECT qa_passed, qa_report, qa_checked_at
-         FROM drafts
-         WHERE id = $1`,
-        [draft.id]
-      );
-      if (qaRefresh.rowCount) {
-        draft.qa_passed = qaRefresh.rows[0].qa_passed;
-        draft.qa_report = qaRefresh.rows[0].qa_report;
-        draft.qa_checked_at = qaRefresh.rows[0].qa_checked_at;
+        const firstDraft = imageResponse.drafts?.[0];
+        if (firstDraft) {
+          imagePreview = {
+            imageDataUrl: firstDraft.preview_image_data_url || null,
+            base64: firstDraft.preview_image_base64 || null,
+            format: firstDraft.image_format || null,
+            altText: firstDraft.alt_text || null,
+            visualPrompt: firstDraft.visual_prompt || null
+          };
+        }
+
+        // Refresh draft to get updated image URL
+        const imageRefresh = await query(
+          `SELECT featured_image_url, featured_image_alt, featured_image_prompt
+           FROM drafts
+           WHERE id = $1`,
+          [draft.id]
+        );
+        if (imageRefresh.rowCount) {
+          draft = {
+            ...draft,
+            featuredImageUrl: imageRefresh.rows[0].featured_image_url,
+            featuredImageAlt: imageRefresh.rows[0].featured_image_alt,
+            featuredImagePrompt: imageRefresh.rows[0].featured_image_prompt
+          };
+        }
+      } catch (imageError) {
+        console.warn('[api] Image generation failed', imageError);
       }
-    } catch (qaError) {
-      console.warn('[api] QA run failed', qaError);
     }
 
     res.json({
       keyword: keywordAfter,
       idea,
-      draft
+      draft,
+      imagePreview
     });
   } catch (error) {
     console.error('[api] failed to generate article', error);

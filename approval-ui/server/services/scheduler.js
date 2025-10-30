@@ -2,6 +2,132 @@ import { query } from '../db.js';
 import callN8nWebhook from './n8n.js';
 import config from '../config.js';
 
+export async function autoScheduleApprovedDrafts() {
+  try {
+    // Get settings
+    const settingsResult = await query(`
+      SELECT publications_per_day, publish_days, include_images
+      FROM publication_settings
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `);
+
+    if (settingsResult.rowCount === 0) {
+      return;
+    }
+
+    const settings = settingsResult.rows[0];
+    const daysMap = {
+      sunday: 0,
+      monday: 1,
+      tuesday: 2,
+      wednesday: 3,
+      thursday: 4,
+      friday: 5,
+      saturday: 6
+    };
+
+    // Get approved drafts not scheduled yet
+    // Cancelar programaciones automáticas previas que aún están pendientes
+    await query(`
+      UPDATE scheduled_publications
+      SET status = 'cancelled',
+          cancelled_at = NOW(),
+          cancelled_by = 'auto-scheduler',
+          cancellation_reason = 'Re-programación por cambio de configuración'
+      WHERE status = 'pending'
+        AND scheduled_automatically = true
+        AND scheduled_datetime > NOW()
+    `);
+    
+    const draftsResult = await query(`
+      SELECT d.id, d.title, d.created_at
+      FROM drafts d
+      WHERE d.status IN ('draft', 'review')
+        AND d.published_at IS NULL
+      ORDER BY d.created_at ASC
+      LIMIT 100
+    `);
+
+    if (draftsResult.rowCount === 0) {
+      return;
+    }
+
+    console.log(`[auto-scheduler] Found ${draftsResult.rowCount} drafts to schedule`);
+
+    // Get next available publication slots
+    const publishDays = settings.publish_days.map(day => daysMap[day]);
+    const publicationsPerDay = settings.publications_per_day || 1;
+
+    // Get already scheduled publications count per day
+    const scheduledResult = await query(`
+      SELECT 
+        DATE(scheduled_datetime) as date,
+        COUNT(*) as count
+      FROM scheduled_publications
+      WHERE status = 'pending'
+        AND scheduled_datetime >= NOW()
+      GROUP BY DATE(scheduled_datetime)
+    `);
+
+    const scheduledCounts = {};
+    scheduledResult.rows.forEach(row => {
+      scheduledCounts[row.date] = parseInt(row.count);
+    });
+
+    // Schedule drafts
+    let currentDate = new Date();
+    const currentHour = currentDate.getHours();
+    
+    if (currentHour >= 18) {
+      // Si ya son más de las 6PM, empezar desde mañana
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    currentDate.setHours(9, 0, 0, 0); // Start at 9 AM
+
+    for (const draft of draftsResult.rows) {
+      let scheduled = false;
+      let attempts = 0;
+      const maxAttempts = 100;
+
+      while (!scheduled && attempts < maxAttempts) {
+        const dayOfWeek = currentDate.getDay();
+        const dateKey = currentDate.toISOString().split('T')[0];
+
+        if (publishDays.includes(dayOfWeek)) {
+          const count = scheduledCounts[dateKey] || 0;
+          
+          if (count < publicationsPerDay) {
+            // Schedule this draft
+            // Distribuir las horas: 9:00, 11:00, 13:00, 15:00, etc.
+            const time = `${String(9 + count * 2).padStart(2, '0')}:00:00`;
+            
+            await query(`
+              INSERT INTO scheduled_publications 
+                (draft_id, scheduled_date, scheduled_time, scheduled_automatically, status, created_by)
+              VALUES ($1, $2, $3, true, 'pending', 'auto-scheduler')
+            `, [draft.id, dateKey, time]);
+
+            scheduledCounts[dateKey] = count + 1;
+            scheduled = true;
+            console.log(`[auto-scheduler] Scheduled "${draft.title}" for ${dateKey} ${time}`);
+          }
+        }
+
+        if (!scheduled) {
+          currentDate.setDate(currentDate.getDate() + 1);
+          attempts++;
+        }
+      }
+    }
+
+    console.log(`[auto-scheduler] Scheduling completed. Total slots used: ${Object.keys(scheduledCounts).length} days`);
+
+  } catch (error) {
+    console.error('[auto-scheduler] Error:', error);
+  }
+}
+
 export async function checkAndPublishScheduled() {
   try {
     // Obtener publicaciones listas para publicar
@@ -48,13 +174,13 @@ export async function checkAndPublishScheduled() {
 
         if (wpResponse.status === 'success') {
           // Marcar como publicado (el workflow ya actualiza la tabla)
-          console.log(`[scheduler] ✅ Publicado: ${pub.title}`);
+          console.log(`[scheduler] Publicado: ${pub.title}`);
         } else {
           throw new Error(wpResponse.message || 'Error desconocido del workflow');
         }
         
       } catch (error) {
-        console.error(`[scheduler] ❌ Error al publicar "${pub.title}":`, error.message);
+        console.error(`[scheduler] Error al publicar "${pub.title}":`, error.message);
         
         // Registrar error
         const newStatus = pub.attempts >= 2 ? 'failed' : 'pending';
@@ -68,7 +194,7 @@ export async function checkAndPublishScheduled() {
         );
 
         if (newStatus === 'failed') {
-          console.error(`[scheduler] 💀 Máximo de intentos alcanzado para: ${pub.title}`);
+          console.error(`[scheduler] Máximo de intentos alcanzado para: ${pub.title}`);
         }
       }
     }
@@ -86,21 +212,25 @@ export function startScheduler() {
     return;
   }
 
-  console.log('[scheduler] 🚀 Iniciando servicio de publicación programada');
-  console.log('[scheduler] ⏰ Revisando cada 60 segundos');
+  console.log('[scheduler] Iniciando servicio de publicación programada');
+  console.log('[scheduler] Revisando cada 60 segundos');
   
   // Ejecutar inmediatamente una vez
+  autoScheduleApprovedDrafts();
   checkAndPublishScheduled();
   
   // Ejecutar cada minuto
-  schedulerInterval = setInterval(checkAndPublishScheduled, 60000);
+  schedulerInterval = setInterval(() => {
+    autoScheduleApprovedDrafts();
+    checkAndPublishScheduled();
+  }, 60000);
 }
 
 export function stopScheduler() {
   if (schedulerInterval) {
     clearInterval(schedulerInterval);
     schedulerInterval = null;
-    console.log('[scheduler] 🛑 Servicio detenido');
+    console.log('[scheduler] Servicio detenido');
   }
 }
 

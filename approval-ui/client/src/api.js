@@ -154,3 +154,24 @@ export async function cancelScheduledPublication(scheduleId, body = {}) {
   });
   return handleResponse(response, 'No se pudo cancelar la programación');
 }
+
+export async function fetchSettings() {
+  const response = await fetch('/api/settings');
+  return handleResponse(response, 'No se pudo cargar la configuración');
+}
+
+export async function saveSettings(body = {}) {
+  const response = await fetch('/api/settings', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify(body)
+  });
+  return handleResponse(response, 'No se pudo guardar la configuración');
+}
+
+export async function triggerAutoSchedule() {
+  const response = await fetch('/api/drafts/auto-schedule', {
+    method: 'POST'
+  });
+  return handleResponse(response, 'No se pudo programar automáticamente');
+}

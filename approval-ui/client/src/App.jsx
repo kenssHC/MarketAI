@@ -14,7 +14,10 @@ import {
   generateDraftImage,
   scheduleDraft,
   publishDraftNow,
-  fetchScheduledPublications
+  fetchScheduledPublications,
+  fetchSettings,
+  saveSettings,
+  triggerAutoSchedule
 } from './api';
 import './app.css';
 
@@ -42,19 +45,24 @@ function Toast({ toast }) {
   );
 }
 
-function BlogCalendario({ onToast }) {
-  const [scheduled, setScheduled] = useState([]);
+function BlogCalendario({ onToast, onOpenEditor }) {
+  const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   useEffect(() => {
-    loadScheduled();
+    loadDrafts();
   }, []);
 
-  async function loadScheduled() {
+  async function loadDrafts() {
     try {
       setLoading(true);
-      const response = await fetchScheduledPublications({ status: 'pending', limit: 100 });
-      setScheduled(response.scheduled || []);
+      const response = await fetchDrafts({ 
+        status: 'draft,review',
+        qaStatus: 'all', // Incluir drafts sin QA
+        limit: 100 
+      });
+      setDrafts(response.drafts || []);
     } catch (error) {
       onToast(error.message, 'error');
     } finally {
@@ -62,120 +70,280 @@ function BlogCalendario({ onToast }) {
     }
   }
 
+  function getDaysInMonth(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    return { daysInMonth, startingDayOfWeek, year, month };
+  }
+
+  function changeMonth(delta) {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + delta, 1));
+  }
+
+  function handleDraftClick(draft) {
+    onOpenEditor({ 
+      draft,
+      keyword: null,
+      idea: null
+    });
+  }
+
+  const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(currentDate);
+  const monthName = currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+  
+  const calendarDays = [];
+  for (let i = 0; i < startingDayOfWeek; i++) {
+    calendarDays.push(null);
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    calendarDays.push(day);
+  }
+
+  const draftsByDay = {};
+  drafts.forEach(draft => {
+    // Usar la fecha programada si existe, de lo contrario usar la fecha de creación
+    const dateToUse = draft.scheduledDatetime ? new Date(draft.scheduledDatetime) : new Date(draft.createdAt);
+    
+    if (dateToUse.getFullYear() === year && dateToUse.getMonth() === month) {
+      const day = dateToUse.getDate();
+      if (!draftsByDay[day]) draftsByDay[day] = [];
+      draftsByDay[day].push(draft);
+    }
+  });
+
   return (
     <div className="panel">
       <header className="panel__header">
         <div>
-          <h2>📅 Publicaciones Programadas</h2>
-          <p className="muted">{scheduled.length} artículos programados</p>
+          <h2>Calendario de Articulos</h2>
+          <p className="muted">{drafts.length} articulos creados</p>
         </div>
-        <button className="btn btn--secondary btn--sm" onClick={loadScheduled}>
-          🔄 Actualizar
+        <button className="btn btn--secondary btn--sm" onClick={loadDrafts}>
+          Actualizar
         </button>
       </header>
       {loading ? (
         <div className="empty-state">
           <p>Cargando...</p>
         </div>
-      ) : scheduled.length === 0 ? (
-        <div className="empty-state">
-          <p>No hay publicaciones programadas</p>
-          <p className="muted">Aprueba un artículo y programa su publicación</p>
-        </div>
       ) : (
-        <div className="table-container">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Título</th>
-                <th>Fecha</th>
-                <th>Hora</th>
-                <th>Proyecto</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {scheduled.map(item => (
-                <tr key={item.id}>
-                  <td>
-                    <div className="draft-title-cell">
-                      {item.title || item.meta_title}
-                    </div>
-                  </td>
-                  <td>{new Date(item.scheduled_date).toLocaleDateString('es-ES')}</td>
-                  <td>{item.scheduled_time}</td>
-                  <td>{item.project_name || '-'}</td>
-                  <td>
-                    <span className={`badge badge--${item.status}`}>
-                      {item.status}
-                    </span>
-                  </td>
-                </tr>
+        <div className="calendar-container">
+          <div className="calendar-header">
+            <button className="btn btn-ghost btn--sm" onClick={() => changeMonth(-1)}>
+              &lt; Anterior
+            </button>
+            <h3>{monthName}</h3>
+            <button className="btn btn-ghost btn--sm" onClick={() => changeMonth(1)}>
+              Siguiente &gt;
+            </button>
+          </div>
+          <div className="calendar-grid">
+            <div className="calendar-weekdays">
+              <div>Dom</div>
+              <div>Lun</div>
+              <div>Mar</div>
+              <div>Mié</div>
+              <div>Jue</div>
+              <div>Vie</div>
+              <div>Sáb</div>
+            </div>
+            <div className="calendar-days">
+              {calendarDays.map((day, index) => (
+                <div 
+                  key={index} 
+                  className={`calendar-day ${!day ? 'calendar-day--empty' : ''}`}
+                >
+                  {day && (
+                    <>
+                      <div className="calendar-day-number">{day}</div>
+                      {draftsByDay[day] && (
+                        <div className="calendar-day-drafts">
+                          {draftsByDay[day].map(draft => (
+                            <div 
+                              key={draft.id}
+                              className="calendar-draft-item"
+                              onClick={() => handleDraftClick(draft)}
+                            >
+                              <span className="calendar-draft-title">
+                                {draft.title || draft.metaTitle || 'Sin título'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function BlogConfiguracion() {
+function BlogConfiguracion({ onToast }) {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [publicationsPerDay, setPublicationsPerDay] = useState(1);
+  const [includeImages, setIncludeImages] = useState(true);
+  const [selectedDays, setSelectedDays] = useState(['monday', 'tuesday', 'wednesday', 'thursday', 'friday']);
+
+  const DAYS = [
+    { id: 'sunday', label: 'Dom' },
+    { id: 'monday', label: 'Lun' },
+    { id: 'tuesday', label: 'Mar' },
+    { id: 'wednesday', label: 'Mié' },
+    { id: 'thursday', label: 'Jue' },
+    { id: 'friday', label: 'Vie' },
+    { id: 'saturday', label: 'Sáb' }
+  ];
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  async function loadSettings() {
+    try {
+      setLoading(true);
+      const data = await fetchSettings();
+      setPublicationsPerDay(data.publicationsPerDay || 1);
+      setIncludeImages(data.includeImages !== undefined ? data.includeImages : true);
+      setSelectedDays(Array.isArray(data.publishDays) ? data.publishDays : ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']);
+    } catch (error) {
+      console.error(error);
+      onToast(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function toggleDay(dayId) {
+    setSelectedDays(prev => {
+      if (prev.includes(dayId)) {
+        return prev.filter(d => d !== dayId);
+      } else {
+        return [...prev, dayId];
+      }
+    });
+  }
+
+  async function handleSave() {
+    if (selectedDays.length === 0) {
+      onToast('Debes seleccionar al menos un día', 'warn');
+      return;
+    }
+    if (publicationsPerDay < 1) {
+      onToast('Las publicaciones por día deben ser al menos 1', 'warn');
+      return;
+    }
+    try {
+      setSaving(true);
+      await saveSettings({
+        publicationsPerDay,
+        publishDays: selectedDays,
+        includeImages
+      });
+      
+      // Programar automáticamente los drafts aprobados según la nueva configuración
+      await triggerAutoSchedule();
+      
+      onToast('Configuración guardada y artículos programados', 'success');
+    } catch (error) {
+      console.error(error);
+      onToast(error.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleReset() {
+    setPublicationsPerDay(1);
+    setSelectedDays(['monday', 'tuesday', 'wednesday', 'thursday', 'friday']);
+    setIncludeImages(true);
+  }
+
   return (
     <div className="panel">
       <header className="panel__header">
         <div>
           <h2>Configuración</h2>
-          <p className="muted">Estos ajustes afectan a futuras generaciones de contenido.</p>
+          <p className="muted">Estos ajustes afectan a futuras publicaciones de contenido.</p>
         </div>
       </header>
       <div className="card">
-        <div className="config-section">
-          <h3>Frecuencia de publicación</h3>
-          <div className="config-grid">
-            <div>
-              <label htmlFor="pubs-per-day">Publicaciones por día</label>
-              <input id="pubs-per-day" type="number" defaultValue="1" />
-            </div>
-            <div>
-              <label>Días de la semana</label>
-              <div className="day-selector">
-                <button className="day-selector__btn">Dom</button>
-                <button className="day-selector__btn day-selector__btn--active">Lun</button>
-                <button className="day-selector__btn day-selector__btn--active">Mar</button>
-                <button className="day-selector__btn day-selector__btn--active">Mié</button>
-                <button className="day-selector__btn day-selector__btn--active">Jue</button>
-                <button className="day-selector__btn">Vie</button>
-                <button className="day-selector__btn">Sáb</button>
+        {loading ? (
+          <div className="empty-state">
+            <p>Cargando configuración...</p>
+          </div>
+        ) : (
+          <>
+            <div className="config-section">
+              <h3>Frecuencia de publicación</h3>
+              <div className="config-grid">
+                <div>
+                  <label htmlFor="pubs-per-day">Publicaciones por día</label>
+                  <input 
+                    id="pubs-per-day" 
+                    type="number" 
+                    min="1"
+                    value={publicationsPerDay}
+                    onChange={(e) => setPublicationsPerDay(parseInt(e.target.value) || 1)}
+                  />
+                </div>
+                <div>
+                  <label>Días de la semana</label>
+                  <div className="day-selector">
+                    {DAYS.map(day => (
+                      <button
+                        key={day.id}
+                        type="button"
+                        className={`day-selector__btn ${selectedDays.includes(day.id) ? 'day-selector__btn--active' : ''}`}
+                        onClick={() => toggleDay(day.id)}
+                      >
+                        {day.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="config-section">
-          <h3>Configuración de contenido</h3>
-          <div className="config-grid">
-            <div>
-              <label htmlFor="text-length">Longitud de texto</label>
-              <select id="text-length">
-                <option>Corto (50-100 palabras)</option>
-              </select>
-            </div>
-            <div>
-              <label>Incluir imágenes</label>
-              <div className="toggle-switch">
-                <input type="checkbox" id="include-images" defaultChecked />
-                <label htmlFor="include-images" className="toggle-switch__label"></label>
-                <span className="toggle-switch__text">Activado</span>
+            <div className="config-section">
+              <h3>Configuración de contenido</h3>
+              <div className="config-grid">
+                <div>
+                  <label>Incluir imágenes</label>
+                  <div className="toggle-switch">
+                    <input 
+                      type="checkbox" 
+                      id="include-images" 
+                      checked={includeImages}
+                      onChange={(e) => setIncludeImages(e.target.checked)}
+                    />
+                    <label htmlFor="include-images" className="toggle-switch__label"></label>
+                    <span className="toggle-switch__text">{includeImages ? 'Activado' : 'Desactivado'}</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <footer className="config-footer">
-          <button className="btn btn-ghost">Restablecer valores</button>
-          <button className="btn btn-primary btn-pink">Guardar configuración</button>
-        </footer>
+            <footer className="config-footer">
+              <button className="btn btn-ghost" onClick={handleReset} disabled={saving}>
+                Restablecer valores
+              </button>
+              <button className="btn btn-primary btn-pink" onClick={handleSave} disabled={saving}>
+                {saving ? 'Guardando...' : 'Guardar configuración'}
+              </button>
+            </footer>
+          </>
+        )}
       </div>
     </div>
   );
@@ -273,17 +441,15 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
         });
 
         const result = await generateArticleFromKeyword(keywordItem.id, {
-          projectName: keywordItem.project_name || projectName
+          projectName: keywordItem.project_name || projectName,
+          generateImage: true
         });
 
         lastBundle = result;
-        onToast(`Articulo generado para "${keywordItem.keyword_principal}"`, 'success');
+        onToast(`Articulo e imagen generados para "${keywordItem.keyword_principal}"`, 'success');
       }
 
       loadKeywords();
-      if (lastBundle) {
-        onOpenEditor(lastBundle);
-      }
     } catch (error) {
       console.error(error);
       onToast(error.message, 'error');
@@ -813,9 +979,9 @@ function BlogRevision({ onToast }) {
 
 function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
   const { keyword, idea, draft } = bundle;
-  const [content, setContent] = useState(draft.content_markdown || '');
-  const [metaTitle, setMetaTitle] = useState(draft.meta_title || '');
-  const [metaDescription, setMetaDescription] = useState(draft.meta_description || '');
+  const [content, setContent] = useState(draft.contentMarkdown || draft.content_markdown || '');
+  const [metaTitle, setMetaTitle] = useState(draft.metaTitle || draft.meta_title || '');
+  const [metaDescription, setMetaDescription] = useState(draft.metaDescription || draft.meta_description || '');
   const [tags, setTags] = useState((draft.tags || []).join(', '));
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
@@ -829,15 +995,15 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('09:00');
 
-  const displayImageUrl = draft.preview_image_data_url || draft.featured_image_url || null;
-  const displayAltText = draft.preview_image_alt || draft.featured_image_alt || 'Imagen generada';
-  const displayPrompt = draft.preview_image_visual_prompt || draft.featured_image_prompt || '';
+  const displayImageUrl = draft.preview_image_data_url || draft.featuredImageUrl || draft.featured_image_url || null;
+  const displayAltText = draft.preview_image_alt || draft.featuredImageAlt || draft.featured_image_alt || 'Imagen generada';
+  const displayPrompt = draft.preview_image_visual_prompt || draft.featuredImagePrompt || draft.featured_image_prompt || '';
   const isPreviewImage = Boolean(draft.preview_image_data_url);
 
   useEffect(() => {
-    setContent(draft.content_markdown || '');
-    setMetaTitle(draft.meta_title || '');
-    setMetaDescription(draft.meta_description || '');
+    setContent(draft.contentMarkdown || draft.content_markdown || '');
+    setMetaTitle(draft.metaTitle || draft.meta_title || '');
+    setMetaDescription(draft.metaDescription || draft.meta_description || '');
     setTags((draft.tags || []).join(', '));
   }, [draft]);
 
@@ -978,6 +1144,11 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
   }
 
   async function handleRegenerate() {
+    if (!keyword) {
+      onToast('No se puede regenerar: falta información de la keyword', 'error');
+      return;
+    }
+    
     try {
       setRegenerating(true);
       const regenerated = await generateArticleFromKeyword(keyword.id, {
@@ -1006,6 +1177,38 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
     }
   }
 
+  // Determinar el estado de publicación
+  const getPublicationStatus = () => {
+    if (draft.publishedAt) {
+      const publishDate = new Date(draft.publishedAt);
+      return {
+        status: 'published',
+        label: 'Publicado',
+        date: publishDate.toLocaleString('es-ES', { 
+          dateStyle: 'medium', 
+          timeStyle: 'short' 
+        }),
+        url: draft.wordpressPostUrl
+      };
+    }
+    
+    if (draft.scheduledDatetime) {
+      const scheduleDate = new Date(draft.scheduledDatetime);
+      return {
+        status: 'scheduled',
+        label: 'Programado para',
+        date: scheduleDate.toLocaleString('es-ES', { 
+          dateStyle: 'medium', 
+          timeStyle: 'short' 
+        })
+      };
+    }
+    
+    return { status: 'draft', label: 'Borrador sin publicar' };
+  };
+
+  const publicationInfo = getPublicationStatus();
+
   return (
     <div className="editor-overlay">
       <div className="editor-panel">
@@ -1013,8 +1216,28 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
           <div>
             <h2>Editar Artículo</h2>
             <p className="muted">
-              Keyword: {keyword.keyword_principal} - Idea: {idea.idea_title}
+              {keyword && idea ? (
+                <>Keyword: {keyword.keyword_principal} - Idea: {idea.idea_title}</>
+              ) : (
+                <>Editando borrador</>
+              )}
             </p>
+            <div className={`publication-status publication-status--${publicationInfo.status}`}>
+              <span className="publication-status__label">{publicationInfo.label}</span>
+              {publicationInfo.date && (
+                <span className="publication-status__date">{publicationInfo.date}</span>
+              )}
+              {publicationInfo.url && (
+                <a 
+                  href={publicationInfo.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="publication-status__link"
+                >
+                  Ver en WordPress
+                </a>
+              )}
+            </div>
           </div>
           <button className="btn btn-ghost" onClick={onClose}>Cerrar</button>
         </header>
@@ -1028,22 +1251,28 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
               onChange={(event) => setContent(event.target.value)}
             />
             
-            <label>Prompt utilizado para generar el artículo:</label>
-            <textarea
-              className="small-textarea"
-              value={idea.idea_title || ''}
-              readOnly
-            />
+            {idea && (
+              <>
+                <label>Prompt utilizado para generar el artículo:</label>
+                <textarea
+                  className="small-textarea"
+                  value={idea.idea_title || ''}
+                  readOnly
+                />
+              </>
+            )}
             
-            <div className="editor-actions">
-              <button
-                className="btn btn-secondary"
-                onClick={handleRegenerate}
-                disabled={regenerating}
-              >
-                {regenerating ? 'Generando...' : 'Generar de nuevo'}
-              </button>
-            </div>
+            {keyword && (
+              <div className="editor-actions">
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleRegenerate}
+                  disabled={regenerating}
+                >
+                  {regenerating ? 'Generando...' : 'Generar de nuevo'}
+                </button>
+              </div>
+            )}
           </section>
 
           <section className="editor-sidebar">
@@ -1110,14 +1339,14 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
         </div>
 
         <div className="editor-section">
-          <h3>📅 Publicación</h3>
+          <h3>Publicación</h3>
           <div className="publish-options">
             <button 
               className="btn btn-publish-now" 
               onClick={handlePublishNow} 
               disabled={publishing || !draft.id}
             >
-              {publishing ? 'Publicando...' : '🚀 Publicar Ahora'}
+              {publishing ? 'Publicando...' : 'Publicar Ahora'}
             </button>
             <button 
               className="btn btn-schedule" 
@@ -1221,9 +1450,9 @@ export default function App() {
   } else if (activeBlogTab === 'revision') {
     blogContent = <BlogRevision onToast={showToast} />;
   } else if (activeBlogTab === 'configuracion') {
-    blogContent = <BlogConfiguracion />;
+    blogContent = <BlogConfiguracion onToast={showToast} />;
   } else if (activeBlogTab === 'programacion') {
-    blogContent = <BlogCalendario onToast={showToast} />;
+    blogContent = <BlogCalendario onToast={showToast} onOpenEditor={handleOpenEditor} />;
   } else {
     blogContent = (
       <div className="panel">

@@ -5,6 +5,7 @@ import path from 'path';
 import config from './config.js';
 import draftsRouter from './routes/drafts.js';
 import keywordsRouter from './routes/keywords.js';
+import settingsRouter from './routes/settings.js';
 import { query } from './db.js';
 import { startScheduler } from './services/scheduler.js';
 
@@ -25,6 +26,7 @@ app.get('/api/health', async (_req, res) => {
 
 app.use('/api/keywords', keywordsRouter);
 app.use('/api/drafts', draftsRouter);
+app.use('/api/settings', settingsRouter);
 
 if (fs.existsSync(config.frontendBuildDir)) {
   app.use(express.static(config.frontendBuildDir));

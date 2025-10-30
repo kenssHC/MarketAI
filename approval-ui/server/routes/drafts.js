@@ -31,15 +31,23 @@ SELECT
   d.updated_at,
   d.approved_at,
   d.approved_by,
+  d.published_at,
+  d.wordpress_post_id,
+  d.wordpress_post_url,
   i.idea_title,
   i.categoria,
   i.status AS idea_status,
   k.cluster_name,
   k.project_name,
-  k.keyword_principal
+  k.keyword_principal,
+  sp.scheduled_date,
+  sp.scheduled_time,
+  sp.scheduled_datetime,
+  sp.status AS schedule_status
 FROM drafts d
 LEFT JOIN ideas i ON i.id = d.idea_id
 LEFT JOIN keywords k ON k.id = d.keyword_cluster_id
+LEFT JOIN scheduled_publications sp ON sp.draft_id = d.id AND sp.status = 'pending'
 `;
 
 function buildFilters({ status, qaStatus, search, project }) {
@@ -60,6 +68,8 @@ function buildFilters({ status, qaStatus, search, project }) {
       clauses.push('COALESCE(d.qa_passed, false) = true');
     } else if (qaStatus === 'pending') {
       clauses.push('(d.qa_passed IS NULL OR d.qa_passed = false)');
+    } else if (qaStatus === 'all') {
+      // No aplicar filtro QA, incluir todos los drafts
     }
   } else {
     clauses.push('COALESCE(d.qa_passed, false) = true');
@@ -111,12 +121,19 @@ function mapDraftRow(row) {
     updatedAt: row.updated_at,
     approvedAt: row.approved_at,
     approvedBy: row.approved_by,
+    publishedAt: row.published_at,
+    wordpressPostId: row.wordpress_post_id,
+    wordpressPostUrl: row.wordpress_post_url,
     ideaTitle: row.idea_title,
     ideaStatus: row.idea_status,
     ideaCategory: row.categoria,
     clusterName: row.cluster_name,
     projectName: row.project_name,
-    keywordPrincipal: row.keyword_principal
+    keywordPrincipal: row.keyword_principal,
+    scheduledDate: row.scheduled_date,
+    scheduledTime: row.scheduled_time,
+    scheduledDatetime: row.scheduled_datetime,
+    scheduleStatus: row.schedule_status
   };
 }
 
@@ -624,6 +641,18 @@ router.delete('/schedule/:schedule_id', async (req, res) => {
   } catch (error) {
     console.error('[api] failed to cancel schedule', error);
     res.status(500).json({ message: 'Error al cancelar la programación', details: error.message });
+  }
+});
+
+// Endpoint para disparar la programación automática
+router.post('/auto-schedule', async (req, res) => {
+  try {
+    const { autoScheduleApprovedDrafts } = await import('../services/scheduler.js');
+    await autoScheduleApprovedDrafts();
+    res.json({ message: 'Artículos programados automáticamente según configuración' });
+  } catch (error) {
+    console.error('[api] failed to auto-schedule', error);
+    res.status(500).json({ message: 'Error al programar automáticamente', details: error.message });
   }
 });
 

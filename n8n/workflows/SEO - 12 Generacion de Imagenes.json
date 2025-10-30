@@ -236,7 +236,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Bearer OpenAI_API_KEY"
+              "value": "=Bearer OPENAI_API_KEY"
             }
           ]
         },
@@ -470,7 +470,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Basic WP_APP_USER:WP_APP_PASSWORD_ENCODED_BASE64"
+              "value": "=Basic WORDPRESS_AUTH_HEADER"
             }
           ]
         },
