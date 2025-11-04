@@ -21,6 +21,9 @@ El módulo SEO cuenta con 13 workflows activos que automatizan la cadena de valo
 |11 | Redacción Investigada | Redacción >800 palabras citando fuentes verificadas | Listo | `/webhook/seo/redaccion/investigada` |
 |12 | Generación de Imágenes | Prompt visual + imagen (Gemini) y subida a WordPress | Listo | `/webhook/seo/imagenes/generar` |
 |13 | QA SEO Automatizado | Revisa drafts y genera reporte SEO con bandera de calidad | Listo | `/webhook/seo/qa` |
+|14 | Publicación WordPress | Publica drafts aprobados directamente en WP | Listo | `/webhook/seo/publicar` |
+|15 | Copys Redes (DB) | Genera copys LinkedIn/Facebook desde drafts aprobados | Listo | `/webhook/seo/social/copy/db` |
+|16 | Copys Redes (Sheets) | Convierte URLs en Google Sheets en copys sociales | Listo | `/webhook/seo/social/copy/sheets` |
 
 ---
 
@@ -137,11 +140,33 @@ Evalúa los drafts generados (WF9/WF11) aplicando checks de calidad SEO: longitu
 - `qa_report.summary` con los checks críticos y advertencias.
 - Registro en `jobs_log` (`job_type = qa`) con métricas y recomendaciones.
 
+### Workflow 15: Copys Redes (DB)
+Genera copys para LinkedIn y Facebook a partir de los drafts aprobados en la base de datos. El flujo selecciona artículos sin copys (a menos que se envíe `force`), normaliza el markdown a texto plano, construye prompts con parámetros (`tone`, `target_audience`, `call_to_action`) y actualiza las columnas `linkedin_copy` y `facebook_copy`. Cada ejecución registra un `jobs_log` con estadísticas y plataformas procesadas.
+
+**Endpoint:** `/webhook/seo/social/copy/db`
+
+**Parámetros destacados**
+- `limit` (default 3)
+- `platforms` (`linkedin`, `facebook`)
+- `draft_id`, `project_name`, `keyword_cluster_id`
+- `tone`, `target_audience`, `call_to_action`, `max_length_linkedin`, `max_length_facebook`
+
+### Workflow 16: Copys Redes (Sheets)
+Replica la lógica anterior usando Google Sheets como fuente de verdad. Toma filas con `status = pending`, identifica si la URL es artículo o video, limpia el contenido (HTML o transcripción vía RapidAPI) y escribe los copys generados directamente en la hoja (`linkedin_copy`, `facebook_copy`, `last_generated_at`). También deja traza en `jobs_log` para auditoría.
+
+**Endpoint:** `/webhook/seo/social/copy/sheets`
+
+**Requisitos de la hoja**
+- Columnas mínimas: `url`, `status`, `linkedin_copy`, `facebook_copy`, `tone`, `target_audience`, `call_to_action`
+- Credencial de Google Sheets (`googleSheetsOAuth2Api`)
+- RapidAPI Key para URLs de YouTube (opcional pero recomendada)
+- Campo `platforms` opcional para limitar redes
+
 ---
 
 ## Workflows por Estado
 
-### ● Completados (13/13)
+### ● Completados (16/16)
 - WF1 – Keywords Analysis
 - WF2 – Ideas Generator (v1)
 - WF3 – Redacción (v1)
@@ -154,12 +179,14 @@ Evalúa los drafts generados (WF9/WF11) aplicando checks de calidad SEO: longitu
 - WF10 – Investigación Deep Research
 - WF11 – Redacción Investigada
 - WF12 – Generación de Imágenes
+- WF13 – QA SEO Automatizado
+- WF14 – Publicación WordPress
+- WF15 – Copys Redes (DB)
+- WF16 – Copys Redes (Sheets)
 
 ### ● Próximos (roadmap)
-- WF13 – QA SEO automatizado
-- WF14 – UI de aprobación / revisión humana
-- WF15 – Publicación WordPress
-- WF16 – Copys para redes sociales
+- WF17 – UI de aprobación / revisión humana
+- WF18 – Publicación multicanal (LinkedIn + Facebook programado)
 
 ---
 

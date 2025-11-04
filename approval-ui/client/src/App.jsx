@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import {
   fetchKeywords,
   createKeywordManual,
@@ -20,6 +20,7 @@ import {
   triggerAutoSchedule
 } from './api';
 import './app.css';
+import { deleteDraft as apiDeleteDraft } from './api';
 
 const NAV_ITEMS = [
   //{ id: 'marketing', label: 'Marketing', disabled: true },
@@ -49,6 +50,11 @@ function BlogCalendario({ onToast, onOpenEditor }) {
   const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const todayStart = useMemo(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t;
+  }, []);
 
   useEffect(() => {
     loadDrafts();
@@ -91,6 +97,17 @@ function BlogCalendario({ onToast, onOpenEditor }) {
       keyword: null,
       idea: null
     });
+  }
+  async function handleDeleteDraft(draft, e) {
+    e?.stopPropagation();
+    try {
+      if (!confirm('¿Eliminar este título? Esta acción no se puede deshacer.')) return;
+      await apiDeleteDraft(draft.id);
+      await loadDrafts();
+      onToast('Título eliminado', 'success');
+    } catch (error) {
+      onToast(error.message, 'error');
+    }
   }
 
   const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(currentDate);
@@ -156,7 +173,7 @@ function BlogCalendario({ onToast, onOpenEditor }) {
               {calendarDays.map((day, index) => (
                 <div 
                   key={index} 
-                  className={`calendar-day ${!day ? 'calendar-day--empty' : ''}`}
+                  className={`calendar-day ${!day ? 'calendar-day--empty' : ''} ${day && (new Date(year, month, day) < todayStart) ? 'calendar-day--past' : ''}`}
                 >
                   {day && (
                     <>
@@ -166,12 +183,23 @@ function BlogCalendario({ onToast, onOpenEditor }) {
                           {draftsByDay[day].map(draft => (
                             <div 
                               key={draft.id}
-                              className="calendar-draft-item"
-                              onClick={() => handleDraftClick(draft)}
+                              className={`calendar-draft-item ${(day && (new Date(year, month, day) < todayStart)) ? 'calendar-draft-item--disabled' : ''}`}
+                              onClick={(day && (new Date(year, month, day) < todayStart)) ? undefined : () => handleDraftClick(draft)}
+                              aria-disabled={(day && (new Date(year, month, day) < todayStart)) ? 'true' : 'false'}
+                              title={(day && (new Date(year, month, day) < todayStart)) ? 'Ya publicado / no editable' : undefined}
                             >
                               <span className="calendar-draft-title">
                                 {draft.title || draft.metaTitle || 'Sin título'}
                               </span>
+                              <button 
+                                type="button"
+                                className="calendar-draft-delete"
+                                title="Eliminar título"
+                                onClick={(ev) => handleDeleteDraft(draft, ev)}
+                                aria-label="Eliminar título"
+                              >
+                                🗑️
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -993,7 +1021,7 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
   // Estados de programación
   const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [scheduledDate, setScheduledDate] = useState('');
-  const [scheduledTime, setScheduledTime] = useState('09:00');
+  const [scheduledTime, setScheduledTime] = useState('12:00');
 
   const displayImageUrl = draft.preview_image_data_url || draft.featuredImageUrl || draft.featured_image_url || null;
   const displayAltText = draft.preview_image_alt || draft.featuredImageAlt || draft.featured_image_alt || 'Imagen generada';

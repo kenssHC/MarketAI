@@ -1,4 +1,4 @@
-const jsonHeaders = {
+﻿const jsonHeaders = {
   'Content-Type': 'application/json'
 };
 
@@ -94,6 +94,13 @@ export async function updateDraft(id, body = {}) {
     body: JSON.stringify(body)
   });
   return handleResponse(response, 'No se pudo actualizar el draft');
+}
+
+export async function deleteDraft(id) {
+  const response = await fetch(`/api/drafts/${id}`, {
+    method: 'DELETE'
+  });
+  return handleResponse(response, 'No se pudo eliminar el draft');
 }
 
 export async function approveDraft(id, body = {}) {

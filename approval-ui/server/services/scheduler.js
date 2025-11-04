@@ -45,6 +45,7 @@ export async function autoScheduleApprovedDrafts() {
       FROM drafts d
       WHERE d.status IN ('draft', 'review')
         AND d.published_at IS NULL
+        AND d.created_at >= CURRENT_DATE
       ORDER BY d.created_at ASC
       LIMIT 100
     `);
@@ -62,12 +63,12 @@ export async function autoScheduleApprovedDrafts() {
     // Get already scheduled publications count per day
     const scheduledResult = await query(`
       SELECT 
-        DATE(scheduled_datetime) as date,
+        scheduled_date as date,
         COUNT(*) as count
       FROM scheduled_publications
       WHERE status = 'pending'
-        AND scheduled_datetime >= NOW()
-      GROUP BY DATE(scheduled_datetime)
+        AND scheduled_date >= CURRENT_DATE
+      GROUP BY scheduled_date
     `);
 
     const scheduledCounts = {};
@@ -84,6 +85,14 @@ export async function autoScheduleApprovedDrafts() {
       currentDate.setDate(currentDate.getDate() + 1);
     }
     currentDate.setHours(9, 0, 0, 0); // Start at 9 AM
+    // Force scheduling to start TODAY at 12:00 regardless of current hour
+    currentDate = new Date();
+    currentDate.setHours(12, 0, 0, 0);
+    // If today is not an allowed publish day, move to the next allowed day
+    while (!publishDays.includes(currentDate.getDay())) {
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    console.log(`[auto-scheduler] Start date: ${currentDate.toISOString().split('T')[0]} 12:00`);
 
     for (const draft of draftsResult.rows) {
       let scheduled = false;
@@ -98,14 +107,25 @@ export async function autoScheduleApprovedDrafts() {
           const count = scheduledCounts[dateKey] || 0;
           
           if (count < publicationsPerDay) {
-            // Schedule this draft
-            // Distribuir las horas: 9:00, 11:00, 13:00, 15:00, etc.
-            const time = `${String(9 + count * 2).padStart(2, '0')}:00:00`;
-            
+            // Hora predeterminada de publicación: 12:00
+            const time = '12:00:00';
+
+            // Upsert para evitar conflicto por unique(draft_id) y no tocar programaciones manuales pendientes
             await query(`
               INSERT INTO scheduled_publications 
                 (draft_id, scheduled_date, scheduled_time, scheduled_automatically, status, created_by)
               VALUES ($1, $2, $3, true, 'pending', 'auto-scheduler')
+              ON CONFLICT (draft_id) DO UPDATE
+              SET 
+                scheduled_date = EXCLUDED.scheduled_date,
+                scheduled_time = EXCLUDED.scheduled_time,
+                status = 'pending',
+                scheduled_automatically = true,
+                updated_at = NOW(),
+                cancelled_at = NULL,
+                cancellation_reason = NULL,
+                cancelled_by = NULL
+              WHERE scheduled_publications.scheduled_automatically = true OR scheduled_publications.status <> 'pending'
             `, [draft.id, dateKey, time]);
 
             scheduledCounts[dateKey] = count + 1;
@@ -233,4 +253,5 @@ export function stopScheduler() {
     console.log('[scheduler] Servicio detenido');
   }
 }
+
 

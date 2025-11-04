@@ -455,7 +455,7 @@ router.post('/:id/schedule', async (req, res) => {
     }
 
     // Validar que la fecha sea futura
-    const scheduledDateTime = new Date(`${scheduled_date}T${scheduled_time || '09:00:00'}`);
+  const scheduledDateTime = new Date(`${scheduled_date}T${scheduled_time || '12:00:00'}`);
     if (scheduledDateTime <= new Date()) {
       return res.status(400).json({ message: 'La fecha debe ser futura' });
     }
@@ -486,10 +486,10 @@ router.post('/:id/schedule', async (req, res) => {
 
     // Crear programación
     const result = await query(
-      `INSERT INTO scheduled_publications (draft_id, scheduled_date, scheduled_time, created_by, status)
+  `INSERT INTO scheduled_publications (draft_id, scheduled_date, scheduled_time, created_by, status)
        VALUES ($1, $2, $3, $4, 'pending')
        RETURNING id, draft_id, scheduled_date, scheduled_time, status, created_at`,
-      [id, scheduled_date, scheduled_time || '09:00:00', created_by || 'system']
+  [id, scheduled_date, scheduled_time || '12:00:00', created_by || 'system']
     );
 
     res.json({
@@ -653,6 +653,21 @@ router.post('/auto-schedule', async (req, res) => {
   } catch (error) {
     console.error('[api] failed to auto-schedule', error);
     res.status(500).json({ message: 'Error al programar automáticamente', details: error.message });
+  }
+});
+
+// Eliminar un draft por id
+router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await query('DELETE FROM drafts WHERE id = $1::uuid RETURNING id', [id]);
+    if (!result.rowCount) {
+      return res.status(404).json({ message: 'Draft no encontrado' });
+    }
+    res.json({ message: 'Draft eliminado', id: result.rows[0].id });
+  } catch (error) {
+    console.error('[api] failed to delete draft', error);
+    res.status(500).json({ message: 'Error al eliminar el draft', details: error.message });
   }
 });
 

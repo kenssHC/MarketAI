@@ -1,4 +1,4 @@
-*, *::before, *::after {
+﻿*, *::before, *::after {
   box-sizing: border-box;
 }
 
@@ -1152,6 +1152,21 @@ textarea {
   box-shadow: none;
 }
 
+/* Past days: visually subdued and non-interactive items */
+.calendar-day--past {
+  opacity: 0.95;
+}
+.calendar-day--past .calendar-draft-item,
+.calendar-draft-item--disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.calendar-day--past .calendar-draft-item:hover,
+.calendar-draft-item--disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 .calendar-day--empty:hover {
   transform: none;
   box-shadow: none;
@@ -1237,6 +1252,27 @@ textarea {
   color: #f1f5f9;
   font-weight: 500;
   line-height: 1.4;
+}
+
+.calendar-draft-delete {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  border: none;
+  background: transparent;
+  color: rgba(248, 113, 113, 0.9);
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.calendar-draft-item:hover .calendar-draft-delete {
+  opacity: 1;
+}
+
+.calendar-draft-delete:hover {
+  transform: scale(1.1);
 }
 
 @media (max-width: 1200px) {

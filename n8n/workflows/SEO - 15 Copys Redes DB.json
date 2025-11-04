@@ -1,0 +1,503 @@
+{
+  "name": "SEO - 15 Copys Redes DB",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "seo/social/copy/db",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Copys DB",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1020,
+        0
+      ],
+      "id": "70d46bcf-91e9-47e5-b3d7-e12b42197e73",
+      "webhookId": "bd5a41a1-627b-48c0-9d26-6f0c2fe1f094"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT\n  d.id AS draft_id,\n  d.idea_id,\n  d.keyword_cluster_id,\n  d.title,\n  d.meta_title,\n  d.meta_description,\n  d.tags,\n  d.content_markdown,\n  d.content_html,\n  d.word_count,\n  d.linkedin_copy,\n  d.facebook_copy,\n  d.status AS draft_status,\n  d.approved_at,\n  d.updated_at,\n  i.idea_title,\n  i.categoria AS idea_categoria,\n  i.status AS idea_status,\n  k.project_name,\n  k.cluster_name,\n  k.keyword_principal,\n  k.keywords_secundarias\nFROM drafts d\nLEFT JOIN ideas i ON i.id = d.idea_id\nLEFT JOIN keywords k ON k.id = d.keyword_cluster_id\nWHERE COALESCE(d.content_markdown, '') <> ''\n  {{ $json.body?.draft_id ? \"AND d.id = '\" + $json.body.draft_id.replace(/'/g, \"''\") + \"'\" : '' }}\n  {{ $json.body?.idea_id ? \"AND d.idea_id = '\" + $json.body.idea_id.replace(/'/g, \"''\") + \"'\" : '' }}\n  {{ $json.body?.keyword_cluster_id ? \"AND d.keyword_cluster_id = '\" + $json.body.keyword_cluster_id.replace(/'/g, \"''\") + \"'\" : '' }}\n  {{ $json.body?.project_name ? \"AND k.project_name = '\" + $json.body.project_name.replace(/'/g, \"''\") + \"'\" : '' }}\n  {{ $json.body?.status ? \"AND d.status = '\" + $json.body.status.replace(/'/g, \"''\") + \"'\" : \"AND d.status IN ('review','approved')\" }}\n  {{ $json.body?.force ? '' : \"AND (COALESCE(d.linkedin_copy, '') = '' OR COALESCE(d.facebook_copy, '') = '')\" }}\nORDER BY d.updated_at DESC NULLS LAST, d.created_at DESC\n{{ $json.body?.limit ? \"LIMIT \" + Math.max(1, Math.min(10, Number($json.body.limit))) : \"LIMIT 3\" }}",
+        "options": {}
+      },
+      "name": "Seleccionar Drafts Copys",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -740,
+        0
+      ],
+      "id": "01132acf-1d2f-49aa-aeb2-604fc8dd548d",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-drafts-social",
+              "leftValue": "={{ $items().length }}",
+              "rightValue": "=0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "name": "Hay Drafts Copys",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        0
+      ],
+      "id": "cba953fb-da83-4baa-9df1-3bbf1a6361c9"
+    },
+    {
+      "parameters": {
+        "jsCode": "                    function toArray(value) {\n                      if (value === undefined || value === null) return [];\n                      if (Array.isArray(value)) {\n                        return value.map((v) => (v ?? '').toString().trim()).filter(Boolean);\n                      }\n                      if (typeof value === 'string') {\n                        const trimmed = value.trim();\n                        if (!trimmed) return [];\n                        try {\n                          const parsed = JSON.parse(trimmed);\n                          if (Array.isArray(parsed)) {\n                            return parsed.map((v) => (v ?? '').toString().trim()).filter(Boolean);\n                          }\n                        } catch (_) {}\n                        return trimmed\n                          .replace(/^[{\\[(]/, '')\n                          .replace(/[}\\])]/, '')\n                          .split(/,|\n|;|\\|/)\n                          .map((part) => part.trim())\n                          .filter(Boolean);\n                      }\n                      if (typeof value === 'object') {\n                        return Object.values(value)\n                          .map((v) => (v ?? '').toString().trim())\n                          .filter(Boolean);\n                      }\n                      return [];\n                    }\n\n                    function stripMarkdown(markdown) {\n                      if (!markdown) return '';\n                      let text = markdown.replace(/```[\\s\\S]*?```/g, ' ');\n                      text = text.replace(/~{3}[\\s\\S]*?~{3}/g, ' ');\n                      text = text.replace(/<script[\\s\\S]*?<\\/script>/gi, ' ');\n                      text = text.replace(/<style[\\s\\S]*?<\\/style>/gi, ' ');\n                      text = text.replace(/!\\[[^\\]]*\\]\\([^)]+\\)/g, ' ');\n                      text = text.replace(/\\[[^\\]]*\\]\\(([^)]+)\\)/g, '$1');\n                      text = text.replace(/<[^>]+>/g, ' ');\n                      text = text.replace(/[#*_`>~-]+/g, ' ');\n                      text = text.replace(/\r/g, ' ');\n                      return text.replace(/\\s+/g, ' ').trim();\n                    }\n\n                    function unique(values) {\n                      const seen = new Set();\n                      const result = [];\n                      for (const value of values) {\n                        const current = (value ?? '').toString().trim();\n                        if (!current) continue;\n                        const key = current.toLowerCase();\n                        if (seen.has(key)) continue;\n                        seen.add(key);\n                        result.push(current);\n                      }\n                      return result;\n                    }\n\n                    const requestItems = $items('Webhook Copys DB', 0) || [];\n                    const requestBody = requestItems[0]?.json?.body || {};\n\n                    const env = (name) => (typeof $env === 'function' ? $env(name) : undefined);\n                    const defaultModel = env('OPENAI_SOCIAL_MODEL') || env('OPENAI_DEFAULT_MODEL') || 'gpt-4o';\n\n                    function resolvePlatforms(raw) {\n                      const arr = unique(toArray(raw).map((value) => value.toLowerCase()));\n                      const supported = ['linkedin', 'facebook'];\n                      const filtered = arr.filter((value) => supported.includes(value));\n                      if (filtered.length) return filtered;\n                      return ['linkedin', 'facebook'];\n                    }\n\n                    const platforms = resolvePlatforms(requestBody.platforms);\n                    const tone = (requestBody.tone || 'profesional cercano').toString();\n                    const targetAudience = (requestBody.target_audience || 'Profesionales interesados en marketing digital y automatización').toString();\n                    const callToAction = (requestBody.call_to_action || 'Invita a comentar aprendizados y compartir con su red.').toString();\n                    const maxLenLinkedin = Number(requestBody.max_length_linkedin ?? 1300) || 1300;\n                    const maxLenFacebook = Number(requestBody.max_length_facebook ?? 2000) || 2000;\n                    const maxExcerptChars = Number(requestBody.max_excerpt_chars ?? 6000) || 6000;\n                    const openAiModel = (requestBody.openai_model || defaultModel).toString();\n\n                    return $input.all().map((item, index) => {\n                      const row = item.json || {};\n                      const markdown = (row.content_markdown || row.content_html || '').toString();\n                      const plain = stripMarkdown(markdown);\n                      const excerpt = plain.length > maxExcerptChars ? plain.slice(0, maxExcerptChars) : plain;\n                      const summary = plain\n                        .split(/\\. |\n/)\n                        .map((part) => part.trim())\n                        .filter(Boolean)\n                        .slice(0, 4)\n                        .join('. ');\n\n                      const keywords = unique([row.keyword_principal, ...toArray(row.keywords_secundarias)]);\n                      const tags = unique(toArray(row.tags));\n\n                      const base = {\n                        draft_id: row.draft_id,\n                        idea_id: row.idea_id,\n                        keyword_cluster_id: row.keyword_cluster_id,\n                        idea_title: row.idea_title,\n                        idea_categoria: row.idea_categoria,\n                        idea_status: row.idea_status,\n                        cluster_name: row.cluster_name,\n                        project_name: row.project_name,\n                        keyword_principal: row.keyword_principal,\n                        keywords_secundarias: keywords,\n                        tags,\n                        existing_linkedin_copy: row.linkedin_copy || null,\n                        existing_facebook_copy: row.facebook_copy || null,\n                        title: row.title || row.meta_title || row.idea_title,\n                        meta_title: row.meta_title,\n                        meta_description: row.meta_description,\n                        word_count: row.word_count || plain.split(/\\s+/).filter(Boolean).length,\n                        article_plain: plain,\n                        article_excerpt: excerpt,\n                        article_summary: summary || excerpt.slice(0, 320),\n                        tone,\n                        target_audience: targetAudience,\n                        call_to_action: callToAction,\n                        platforms,\n                        max_length_linkedin: maxLenLinkedin,\n                        max_length_facebook: maxLenFacebook,\n                        request_body: requestBody,\n                        openai_model: openAiModel,\n                        start_time: new Date().toISOString(),\n                        start_ts_ms: Date.now() + index\n                      };\n\n                      return { json: base };\n                    });"
+      },
+      "name": "Preparar Contexto Copys DB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        120
+      ],
+      "id": "f0d4b742-a143-4da4-857f-65dfe3ce3f23"
+    },
+    {
+      "parameters": {
+        "jsCode": "                    const data = $json || {};\n\n                    const articlePayload = {\n                      draft_id: data.draft_id,\n                      title: data.title,\n                      meta_title: data.meta_title,\n                      meta_description: data.meta_description,\n                      idea_title: data.idea_title,\n                      idea_categoria: data.idea_categoria,\n                      project_name: data.project_name,\n                      cluster_name: data.cluster_name,\n                      keyword_principal: data.keyword_principal,\n                      keywords_secundarias: data.keywords_secundarias || [],\n                      tags: data.tags || [],\n                      summary: data.article_summary,\n                      excerpt: data.article_excerpt,\n                      word_count: data.word_count,\n                      tone: data.tone,\n                      target_audience: data.target_audience,\n                      call_to_action: data.call_to_action,\n                      platforms: data.platforms\n                    };\n\n                    const formatDescription = `Debes responder con un JSON válido (sin bloques markdown) que contenga únicamente las claves de las plataformas solicitadas (${data.platforms.join(', ')}). Si una plataforma no está solicitada, omítela. Cada plataforma debe seguir esta estructura:\n{\n  \"hook\": \"Frase inicial fuerte (máx. 2 frases)\",\n  \"body\": \"Desarrollo con máximo 3 párrafos cortos\",\n  \"cta\": \"Llamado a la acción coherente con el objetivo\",\n  \"hashtags\": [\"#Ejemplo\"],\n  \"emojis\": [\"🙂\"],\n  \"suggested_image\": \"Idea breve de recurso gráfico (opcional)\",\n  \"angle\": \"Resumen del ángulo creativo usado\"\n}`;\n\n                    const constraints = [`Responde en español neutro con tono ${data.tone}.`,\n                      `Respeta el límite de ${data.max_length_linkedin} caracteres para LinkedIn y ${data.max_length_facebook} para Facebook.`,\n                      'Integra la keyword principal y 1-2 secundarias de forma natural.',\n                      'Evita repetir párrafos del artículo; sintetiza insights clave.',\n                      'Añade hashtags relevantes (máx. 5 por plataforma).',\n                      'Si la llamada a la acción ya existe en el contexto úsala como inspiración, pero adapta la redacción.',\n                      'Procura incluir un gancho narrativo o dato llamativo en el hook de LinkedIn.',\n                      'Para Facebook permite un tono ligeramente más conversacional y cercano.'\n                    ];\n\n                    const prompt = [`Contexto del artículo (JSON):`, JSON.stringify(articlePayload, null, 2), '', formatDescription, '', 'Restricciones:', ...constraints, '', 'Entrega solo el JSON pedido.'].join('\n');\n\n                    return [{ json: { ...data, prompt } }];"
+      },
+      "name": "Construir Prompt Copys DB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        120
+      ],
+      "id": "c2865a46-9d7a-4a93-8dc1-cb1b3ca4615b"
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "={{ $json.openai_model }}",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "Eres un copywriter senior B2B especialista en adaptar artículos largos en español neutro a piezas breves para redes sociales. No inventes datos, enfatiza beneficios concretos y mantén coherencia con la marca."
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "options": {
+          "maxTokens": 1200,
+          "temperature": 0.65
+        },
+        "requestOptions": {}
+      },
+      "name": "Generar Copys DB",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        240,
+        120
+      ],
+      "id": "487be944-8be8-4010-a10e-405fb1f9217a",
+      "credentials": {
+        "openAiApi": {
+          "id": "IDR18P8JJHeNClOr",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "                    const rawMessage = $json.message?.content || $json.text || $json.response || '';\n                    let cleaned = String(rawMessage).trim();\n                    if (cleaned.startsWith('```json')) {\n                      cleaned = cleaned.replace(/^```json\\s*/i, '').replace(/```$/i, '').trim();\n                    } else if (cleaned.startsWith('```')) {\n                      cleaned = cleaned.replace(/^```\\s*/i, '').replace(/```$/i, '').trim();\n                    }\n\n                    let parsed;\n                    try {\n                      parsed = JSON.parse(cleaned);\n                    } catch (error) {\n                      throw new Error('No se pudo parsear la respuesta del modelo a JSON. Respuesta:\n' + cleaned);\n                    }\n\n                    const context = $items('Preparar Contexto Copys DB', 0)[$itemIndex]?.json || {};\n                    const platforms = Array.isArray(context.platforms) ? context.platforms : ['linkedin', 'facebook'];\n\n                    function resolvePlatform(data, key) {\n                      if (!data) return null;\n                      const direct = data[key];\n                      if (direct) return direct;\n                      const alt = data[key.charAt(0).toUpperCase() + key.slice(1)];\n                      if (alt) return alt;\n                      if (key === 'linkedin') {\n                        return data.LinkedIn || data.linked_in || data.linkedin_post || null;\n                      }\n                      if (key === 'facebook') {\n                        return data.Facebook || data.facebook_post || null;\n                      }\n                      return null;\n                    }\n\n                    function buildCopy(block, fallback) {\n                      if (!block || typeof block !== 'object') {\n                        return fallback || null;\n                      }\n                      const parts = [];\n                      if (block.hook) parts.push(block.hook.trim());\n                      if (block.body) parts.push(block.body.trim());\n                      if (block.cta) parts.push(block.cta.trim());\n                      if (Array.isArray(block.hashtags) && block.hashtags.length) {\n                        const tags = block.hashtags.map((tag) => (tag || '').toString().trim()).filter(Boolean);\n                        if (tags.length) parts.push(tags.join(' '));\n                      }\n                      return parts.filter(Boolean).join('\n\n') || fallback || null;\n                    }\n\n                    const linkedinStruct = resolvePlatform(parsed, 'linkedin');\n                    const facebookStruct = resolvePlatform(parsed, 'facebook');\n\n                    const linkedinCopy = platforms.includes('linkedin')\n                      ? buildCopy(linkedinStruct, context.existing_linkedin_copy)\n                      : context.existing_linkedin_copy || null;\n\n                    const facebookCopy = platforms.includes('facebook')\n                      ? buildCopy(facebookStruct, context.existing_facebook_copy)\n                      : context.existing_facebook_copy || null;\n\n                    const usage = $json.usage || $json.data?.[0]?.usage || {};\n                    const totalTokens = usage.total_tokens ?? usage.totalTokens ?? null;\n\n                    return [{\n                      json: {\n                        ...context,\n                        structured_copies: parsed,\n                        linkedin_copy_new: linkedinCopy,\n                        facebook_copy_new: facebookCopy,\n                        llm_tokens_used: totalTokens\n                      }\n                    }];"
+      },
+      "name": "Parsear Copys DB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        120
+      ],
+      "id": "ad8baa58-7ac0-47f3-9683-3d7791e41e05"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE drafts\nSET\n  linkedin_copy = COALESCE($2, linkedin_copy),\n  facebook_copy = COALESCE($3, facebook_copy),\n  updated_at = NOW()\nWHERE id = $1::uuid\nRETURNING id, linkedin_copy, facebook_copy, updated_at;",
+        "values": "={{ [ $json.draft_id, $json.linkedin_copy_new, $json.facebook_copy_new ] }}",
+        "options": {}
+      },
+      "name": "Actualizar Draft Copys DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        720,
+        120
+      ],
+      "id": "21d5f3ae-a8f7-4c14-ab5a-7f90f8de9693",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const idx = $itemIndex;\nconst context = $items('Parsear Copys DB', 0)[idx]?.json || {};\nconst updated = $json || {};\n\nreturn [{\n  json: {\n    ...context,\n    updated_draft: updated,\n    linkedin_copy_result: updated.linkedin_copy || context.linkedin_copy_new || context.existing_linkedin_copy || null,\n    facebook_copy_result: updated.facebook_copy || context.facebook_copy_new || context.existing_facebook_copy || null\n  }\n}];"
+      },
+      "name": "Combinar Draft Actualizado DB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        120
+      ],
+      "id": "a0b2df33-f528-4a81-9d35-1e9d4a164e47"
+    },
+    {
+      "parameters": {
+        "jsCode": "const context = $json || {};\nconst endTime = new Date();\nconst durationMs = Math.max(0, Date.now() - (context.start_ts_ms || Date.now()));\n\nconst jobLog = {\n  job_name: 'SEO - 15 Copys Redes DB',\n  job_type: 'social_copy',\n  status: 'success',\n  related_keyword_id: context.keyword_cluster_id || null,\n  related_idea_id: context.idea_id || null,\n  related_draft_id: context.draft_id || null,\n  started_at: context.start_time || endTime.toISOString(),\n  completed_at: endTime.toISOString(),\n  duration_ms: durationMs,\n  input_data: {\n    platforms: context.platforms || [],\n    tone: context.tone || null,\n    target_audience: context.target_audience || null,\n    call_to_action: context.call_to_action || null\n  },\n  output_data: {\n    linkedin_copy: context.linkedin_copy_result || null,\n    facebook_copy: context.facebook_copy_result || null,\n    structured_copies: context.structured_copies || {},\n    tokens_used: context.llm_tokens_used || null\n  }\n};\n\nreturn [{ json: { ...context, job_log: jobLog } }];"
+      },
+      "name": "Preparar Job Log Copys DB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        120
+      ],
+      "id": "f2692512-2785-4ea1-9a31-ecff6a0a7e2c"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO jobs_log (job_name, job_type, status, related_keyword_id, related_idea_id, related_draft_id, started_at, completed_at, duration_ms, input_data, output_data)\nVALUES ($1, $2, $3, $4, $5, $6, $7::timestamp, $8::timestamp, $9, $10::jsonb, $11::jsonb)\nRETURNING id, job_name, status, created_at;",
+        "values": "={{ [ $json.job_log.job_name, $json.job_log.job_type, $json.job_log.status, $json.job_log.related_keyword_id, $json.job_log.related_idea_id, $json.job_log.related_draft_id, $json.job_log.started_at, $json.job_log.completed_at, $json.job_log.duration_ms, $json.job_log.input_data, $json.job_log.output_data ] }}",
+        "options": {}
+      },
+      "name": "Insertar Job Log Copys DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        120
+      ],
+      "id": "45f0f718-3d2c-4d1f-9f6e-d785b6a37bc9",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const context = $items('Preparar Job Log Copys DB', 0)[$itemIndex]?.json || {};\nconst row = $json || {};\nreturn [{\n  json: {\n    ...context,\n    job_log_id: row.id || null,\n    job_log_created_at: row.created_at || null\n  }\n}];"
+      },
+      "name": "Adjuntar Job Log Copys DB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        120
+      ],
+      "id": "a1277bf7-9d18-47c2-8111-da5326161716"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "processed_items",
+        "options": {}
+      },
+      "name": "Aggregate Copys DB",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        120
+      ],
+      "id": "d5b8cf8b-9005-4ef0-8b4a-56f6b8f1f4eb"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $json.processed_items || [];\nreturn [{\n  json: {\n    status: items.length ? 'success' : 'empty',\n    total: items.length,\n    drafts: items.map((item) => ({\n      draft_id: item.draft_id,\n      idea_id: item.idea_id,\n      keyword_cluster_id: item.keyword_cluster_id,\n      project_name: item.project_name,\n      title: item.title,\n      linkedin_copy: item.linkedin_copy_result,\n      facebook_copy: item.facebook_copy_result,\n      job_log_id: item.job_log_id\n    })),\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Preparar Respuesta Copys DB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        120
+      ],
+      "id": "6736870a-50bb-4eae-94bb-e522665f1e39"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "name": "Responder Copys DB",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2400,
+        120
+      ],
+      "id": "feb1e5b2-eca7-42a7-b0c5-e9ba3c9aeb66"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { status: 'empty', message: 'No se encontraron drafts pendientes de copys para redes.', generated_at: new Date().toISOString() } }];"
+      },
+      "name": "Respuesta Vacia Copys DB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        -200
+      ],
+      "id": "5ea84408-66b7-4c73-9f1c-15ed9d4dfc63"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "name": "Responder Sin Drafts Copys DB",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -200
+      ],
+      "id": "a6db31be-5b0d-4154-8eb0-42c23a305479"
+    }
+  ],
+  "connections": {
+    "Webhook Copys DB": {
+      "main": [
+        [
+          {
+            "node": "Seleccionar Drafts Copys",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Seleccionar Drafts Copys": {
+      "main": [
+        [
+          {
+            "node": "Hay Drafts Copys",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hay Drafts Copys": {
+      "main": [
+        [
+          {
+            "node": "Preparar Contexto Copys DB",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respuesta Vacia Copys DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Contexto Copys DB": {
+      "main": [
+        [
+          {
+            "node": "Construir Prompt Copys DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construir Prompt Copys DB": {
+      "main": [
+        [
+          {
+            "node": "Generar Copys DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Copys DB": {
+      "main": [
+        [
+          {
+            "node": "Parsear Copys DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear Copys DB": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Draft Copys DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Draft Copys DB": {
+      "main": [
+        [
+          {
+            "node": "Combinar Draft Actualizado DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combinar Draft Actualizado DB": {
+      "main": [
+        [
+          {
+            "node": "Preparar Job Log Copys DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Job Log Copys DB": {
+      "main": [
+        [
+          {
+            "node": "Insertar Job Log Copys DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar Job Log Copys DB": {
+      "main": [
+        [
+          {
+            "node": "Adjuntar Job Log Copys DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Adjuntar Job Log Copys DB": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Copys DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Copys DB": {
+      "main": [
+        [
+          {
+            "node": "Preparar Respuesta Copys DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Respuesta Copys DB": {
+      "main": [
+        [
+          {
+            "node": "Responder Copys DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respuesta Vacia Copys DB": {
+      "main": [
+        [
+          {
+            "node": "Responder Sin Drafts Copys DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b0f20d3a-5724-45d3-94f5-6f1e5c8ac7f2",
+  "meta": {
+    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+  },
+  "id": "546a867f-4f3d-4f09-90f1-61e9f6a0e813",
+  "tags": [
+    {
+      "createdAt": "2025-08-01T12:00:00.000Z",
+      "updatedAt": "2025-08-01T12:00:00.000Z",
+      "id": "Jyvk52dJ2wNnSCbU",
+      "name": "SEO"
+    },
+    {
+      "createdAt": "2025-11-03T10:00:00.000Z",
+      "updatedAt": "2025-11-03T10:00:00.000Z",
+      "id": "f3d3d497-1693-4e7a-b6c0-9d7ef3d10c27",
+      "name": "Social"
+    }
+  ]
+}
