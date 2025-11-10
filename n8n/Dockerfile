@@ -16,6 +16,3 @@ COPY migrations /home/node/migrations
 
 # Exponer puerto
 EXPOSE 5678
-
-# Al final del Dockerfile:
-CMD ["node", "/usr/local/bin/n8n", "start"]
