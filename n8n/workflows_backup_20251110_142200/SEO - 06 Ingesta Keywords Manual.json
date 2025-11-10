@@ -1,0 +1,181 @@
+{
+  "name": "SEO - 06 Ingesta Keywords Manual",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "seo/ingesta/manual",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "42e57127-32b8-4af1-8283-6b3911bb9a76",
+      "webhookId": "511d74c6-4073-49ea-aa1f-5c934a900e63"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process manual keyword input\n// El webhook envía los datos en el objeto 'body'\nconst inputData = $input.first().json;\nconst webhookBody = inputData.body || inputData;\n\nconst keywords = webhookBody.keywords || [];\nconst clusterName = webhookBody.cluster_name || 'Manual Import';\nconst projectName = webhookBody.project_name || null;\nconst source = 'manual';\n\n// Transform keywords into database format\nconst processedKeywords = keywords.map(keyword => {\n  if (typeof keyword === 'string') {\n    // Simple string format\n    return {\n      keyword: keyword,\n      search_volume: 0,\n      competition: 'Unknown',\n      search_intent: 'informacional',\n      cluster_name: clusterName,\n      project_name: projectName,\n      source: source\n    };\n  } else {\n    // Object with metadata\n    return {\n      keyword: keyword.keyword || '',\n      search_volume: keyword.search_volume || 0,\n      competition: keyword.competition || 'Unknown',\n      search_intent: keyword.intent || keyword.search_intent || 'informacional',\n      cluster_name: clusterName,\n      project_name: projectName,\n      source: source\n    };\n  }\n});\n\nreturn processedKeywords.map(k => ({json: k}));"
+      },
+      "name": "Parse Keywords",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "d27f8887-2883-416a-935b-69d2924d89cc"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO keywords (\n  cluster_name,\n  keyword_principal,\n  keywords_secundarias,\n  source,\n  search_volume,\n  competition,\n  search_intent,\n  status,\n  project_name\n)\nVALUES (\n  '{{ $json.cluster_name.replace(/'/g, \"''\") }}',\n  '{{ $json.keyword.replace(/'/g, \"''\") }}',\n  '[]'::jsonb,\n  '{{ $json.source }}',\n  {{ $json.search_volume }},\n  '{{ $json.competition.replace(/'/g, \"''\") }}',\n  '{{ $json.search_intent }}',\n  'pending',\n  {{ $json.project_name ? \"'\" + $json.project_name.replace(/'/g, \"''\") + \"'\" : \"NULL\" }}\n)\nON CONFLICT (keyword_principal) DO UPDATE\nSET \n  search_volume = EXCLUDED.search_volume,\n  competition = EXCLUDED.competition,\n  search_intent = EXCLUDED.search_intent,\n  updated_at = CURRENT_TIMESTAMP\nRETURNING id, keyword_principal, cluster_name, created_at;",
+        "options": {}
+      },
+      "name": "Guardar en PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "id": "4f34bf21-a7e7-4f0f-9235-ae2c7d4ba1fa",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "all_keywords",
+        "options": {}
+      },
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        608,
+        0
+      ],
+      "id": "9cca9faf-62b3-4376-9158-6f87fb9f2da1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Preparar Respuesta",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        800,
+        0
+      ],
+      "id": "5f0f2172-81c9-48bc-9f69-40c1a6508e5e"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        0
+      ],
+      "id": "afa98005-73eb-44de-939b-213414f4e926"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Keywords": {
+      "main": [
+        [
+          {
+            "node": "Guardar en PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar en PostgreSQL": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Preparar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Respuesta": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "773e7e7b-373c-40da-8915-da82975a0ec6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+  },
+  "id": "IbXBavwiX3USxttx",
+  "tags": [
+    {
+      "createdAt": "2025-10-17T20:03:03.929Z",
+      "updatedAt": "2025-10-17T20:03:03.929Z",
+      "id": "H2Af7KIePlyZ9uu5",
+      "name": "Ingesta"
+    },
+    {
+      "createdAt": "2025-10-16T23:45:00.633Z",
+      "updatedAt": "2025-10-16T23:45:00.633Z",
+      "id": "Jyvk52dJ2wNnSCbU",
+      "name": "SEO"
+    }
+  ]
+}

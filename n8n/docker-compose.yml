@@ -6,20 +6,23 @@ services:
       - "5678:5678"
     environment:
       # Mantener la misma clave de encriptación
-      - N8N_ENCRYPTION_KEY=your-secret-key
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-your-secret-key}
       
       # Configuración básica
-      - N8N_HOST=localhost
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - WEBHOOK_URL=http://localhost:5678/
-      - GENERIC_TIMEZONE=America/Lima
-      - TZ=America/Lima
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=${N8N_PORT:-5678}
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - WEBHOOK_URL=${N8N_PROTOCOL:-http}://${N8N_HOST:-localhost}:${N8N_PORT:-5678}/
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-America/Lima}
+      - TZ=${TZ:-America/Lima}
       
-      # Base de datos
-      - DB_TYPE=sqlite
-      - DB_SQLITE_PATH=/home/node/.n8n/database.sqlite
-      - DB_SQLITE_POOL_SIZE=10
+      # Base de datos PostgreSQL (migrado de SQLite)
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${PGDATABASE:-marketai_seo}
+      - DB_POSTGRESDB_USER=${PGUSER:-marketai_user}
+      - DB_POSTGRESDB_PASSWORD=${PGPASSWORD:-marketai_secure_password}
       
       # Mejoras de rendimiento
       - N8N_METRICS=true
@@ -32,13 +35,15 @@ services:
       - EXECUTIONS_DATA_SAVE_ON_PROGRESS=true
       - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
       
-      # OpenAI (ajustar según tus necesidades)
+      # OpenAI
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_MODEL=gpt-4
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
 
       # WordPress
-      - WORDPRESS_MEDIA_ENDPOINT=https://larabs.pe/wp-json/wp/v2/media
-      - WORDPRESS_AUTH_HEADER=Basic dHVfYXBwX3VzZXI6dHVfYXBwX3Bhc3N3b3Jk
+      - WORDPRESS_MEDIA_ENDPOINT=${WP_BASE_URL}/wp-json/wp/v2/media
+      - WP_BASE_URL=${WP_BASE_URL}
+      - WP_APP_USER=${WP_APP_USER}
+      - WP_APP_PASSWORD=${WP_APP_PASSWORD}
     volumes:
       - ./storage:/home/node/.n8n
       - ./workflows:/home/node/.n8n/workflows

@@ -50,7 +50,33 @@ backups/
 # Datos de prueba (opcional, según prefieras)
 # test_data/
 
-# Node modules (si usas n8n con custom nodes)
+# Node modules
 node_modules/
-package-lock.json
+npm-debug.log
+yarn.lock
 approval-ui/dist/
+approval-ui/client/dist/
+
+# Build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# PostgreSQL dumps y backups
+*.sql.backup
+*.dump
+postgres_data/
+
+# Certificados SSL (si usas localmente)
+*.pem
+*.key
+*.crt
+*.cert
+
+# Railway
+.railway/
+
+# Credenciales sensibles (nunca subir)
+*credentials*.json
+*secret*.json
+*apikey*.txt

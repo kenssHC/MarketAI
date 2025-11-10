@@ -1,0 +1,168 @@
+{
+  "name": "SEO - 02 Clasificación de Ideas",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "seo/ideas",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        432,
+        -128
+      ],
+      "id": "db7a1791-2e44-436f-a5c8-d802a9269c0f",
+      "webhookId": "15a8b900-1160-41eb-92f3-0a33edc75193"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "prompt",
+              "value": "=`Clasifica y organiza las siguientes ideas para contenido SEO:\n\nKeywords: {{$json.keywords.join(', ')}}\nTema principal: {{$json.tema}}\nObjetivo: {{$json.objetivo}}\n\nAnaliza y agrupa las keywords en categorías relevantes, sugiere ideas de contenido y asigna un nivel de relevancia.\nResponde en formato JSON exactamente como se especifica:\n{\n  \"categorias\": [\n    {\n      \"nombre\": \"nombre de la categoría\",\n      \"keywords\": [\"keywords relacionadas\"],\n      \"relevancia\": \"1-10\",\n      \"ideas_contenido\": [\"ideas para artículos o contenido\"]\n    }\n  ]\n}`"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Preparar Prompt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        640,
+        -128
+      ],
+      "id": "19629b15-b085-414d-a96c-df6d905334ad"
+    },
+    {
+      "parameters": {
+        "prompt": "={{ $json.prompt }}",
+        "options": {
+          "maxTokens": 2500,
+          "temperature": 0.7
+        },
+        "requestOptions": {}
+      },
+      "name": "OpenAI",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        832,
+        -128
+      ],
+      "id": "f93e854c-c862-4809-8575-410a50ef525a",
+      "credentials": {
+        "openAiApi": {
+          "id": "IDR18P8JJHeNClOr",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "result",
+              "value": "={{JSON.parse($json.text)}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Procesar Respuesta",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        -128
+      ],
+      "id": "1b7ddbc1-f6e1-4f78-9f3e-890969416ef1"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{$json.result}}",
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1232,
+        -128
+      ],
+      "id": "f78d7930-b7ce-4e0f-9321-bb8358ce9f1c"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Preparar Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Procesar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Respuesta": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7cd53f3d-e8c9-4918-9773-9a3e9b526b90",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+  },
+  "id": "vcs6yceydyaJmQUu",
+  "tags": [
+    {
+      "createdAt": "2025-10-16T23:45:00.633Z",
+      "updatedAt": "2025-10-16T23:45:00.633Z",
+      "id": "Jyvk52dJ2wNnSCbU",
+      "name": "SEO"
+    }
+  ]
+}

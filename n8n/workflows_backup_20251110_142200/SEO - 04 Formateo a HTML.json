@@ -1,0 +1,168 @@
+{
+  "name": "SEO - 04 Formateo a HTML",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "seo/formatear",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "190e769b-0d3f-4f7b-89b8-5e83362e1442",
+      "webhookId": "1c384523-4256-4f12-bc1e-67e2acede40e"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "prompt",
+              "value": "=`Convierte el siguiente JSON en un artículo formateado en HTML optimizado para SEO. El JSON contiene:\n\n${JSON.stringify($json.contenido, null, 2)}\n\nGenera un artículo HTML con las siguientes características:\n\n1. Usa etiquetas HTML semánticas apropiadas\n2. Incluye encabezados jerárquicos (h1, h2, etc)\n3. Agrega enlaces internos entre secciones cuando sea relevante\n4. Optimiza la estructura para SEO\n5. Mantén el formato y estilo consistente\n\nResponde con un objeto JSON que contenga:\n{\n  \"html\": \"código HTML del artículo\",\n  \"stats\": {\n    \"palabras_totales\": número,\n    \"densidad_keywords\": {\n      \"keyword\": porcentaje\n    }\n  }\n}`"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Preparar Prompt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "0fe69d6f-8488-4f76-9fc7-96dd19081e00"
+    },
+    {
+      "parameters": {
+        "prompt": "={{ $json.prompt }}",
+        "options": {
+          "maxTokens": 3000,
+          "temperature": 0.3
+        },
+        "requestOptions": {}
+      },
+      "name": "OpenAI",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        400,
+        0
+      ],
+      "id": "7f82e730-43dd-4fba-a9c9-3fefba747db3",
+      "credentials": {
+        "openAiApi": {
+          "id": "IDR18P8JJHeNClOr",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "result",
+              "value": "={{JSON.parse($json.text)}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Procesar Respuesta",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        608,
+        0
+      ],
+      "id": "6d1a6abc-6213-4ed9-ba25-5a9cd62b6fdb"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{$json.result}}",
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        800,
+        0
+      ],
+      "id": "abe49889-c1b7-42d5-9776-3f0ce6add9f3"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Preparar Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Procesar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Respuesta": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8b228636-97a9-4620-93ab-a3c6640a1dd8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+  },
+  "id": "H0WeyeN8kLHs1ER0",
+  "tags": [
+    {
+      "createdAt": "2025-10-16T23:45:00.633Z",
+      "updatedAt": "2025-10-16T23:45:00.633Z",
+      "id": "Jyvk52dJ2wNnSCbU",
+      "name": "SEO"
+    }
+  ]
+}

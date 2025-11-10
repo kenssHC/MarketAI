@@ -1,0 +1,445 @@
+{
+  "name": "SEO - 08 Generación de Ideas",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "seo/ideas-generation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        112
+      ],
+      "id": "a5234452-3051-41cf-8a11-9062b1090daa",
+      "webhookId": "04bd82ba-3b57-4f2f-977e-96827a59226c"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  k.id,\n  k.cluster_name,\n  k.keyword_principal,\n  k.keywords_secundarias,\n  k.project_name\nFROM keywords k\nWHERE k.status = 'processed'\n{{ $json.body?.keyword_cluster_id ? \"  AND k.id = '\" + $json.body.keyword_cluster_id.replace(/'/g, \"''\") + \"'\" : \"\" }}\n  AND k.id NOT IN (\n    SELECT DISTINCT keyword_cluster_id \n    FROM ideas \n    WHERE keyword_cluster_id IS NOT NULL\n  )\nORDER BY k.created_at DESC\n{{ $json.body?.limit ? \"LIMIT \" + $json.body.limit : \"LIMIT 10\" }}",
+        "options": {}
+      },
+      "name": "Leer Clusters Procesados",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        112
+      ],
+      "id": "3a25b9e8-0f9c-4ca4-ab44-b1b33208f096",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-clusters-exist",
+              "leftValue": "={{ $items().length }}",
+              "rightValue": "={{ 0 }}",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "looseTypeValidation": true
+        }
+      },
+      "name": "Check Clusters Existen",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        112
+      ],
+      "id": "dc5af160-d0d3-4409-b907-106af0a66400"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Helpers\nfunction normalizeArray(v) {\n  if (Array.isArray(v)) return v.filter(Boolean).map(String);\n\n  if (v == null) return [];\n\n  if (typeof v === 'string') {\n    const t = v.trim();\n    if (!t) return [];\n\n    // Si parece JSON, intentamos parsear\n    if (t.startsWith('[') || t.startsWith('{')) {\n      try {\n        const parsed = JSON.parse(t);\n        return Array.isArray(parsed) ? parsed.filter(Boolean).map(String)\n                                     : [String(parsed)];\n      } catch {\n        // cae al split por comas\n      }\n    }\n\n    // Texto plano: \"a, b, c\" o \"machine learning\"\n    return t.split(',').map(s => s.trim()).filter(Boolean);\n  }\n\n  // Cualquier otro tipo\n  return [];\n}\n\n// Datos de entrada\nconst keywordPrincipal = ($json.keyword_principal ?? '').toString();\nconst secundarios = normalizeArray($json.keywords_secundarias);\n\n// Unimos y deduplicamos\nconst allKeywords = Array.from(new Set([keywordPrincipal, ...secundarios].filter(Boolean)));\n\nreturn [{\n  json: {\n    cluster_id: $json.id,\n    cluster_name: $json.cluster_name ?? '',\n    keyword_principal: keywordPrincipal,\n    keywords: allKeywords,\n    project_name: $json.project_name ?? null,\n  }\n}];\n"
+      },
+      "name": "Preparar Keywords por Cluster",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "817396c8-a8d2-493b-a51b-474ebfc28818"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construir el prompt de generación de ideas basado en Prompt #2\nconst keywords = $json.keywords;\n\nconst prompt = `Actúa como un estratega de contenidos y generador de ideas para blog.\n\nRecibirás un conjunto de keywords principales y secundarias seleccionadas previamente.\n\nTu objetivo es:\n1. Analizar el conjunto total de keywords y encontrar temas en común o tendencias.\n2. Generar **30 ideas de contenido únicas** para blog, videos o guías, basadas en el conjunto total (no en cada keyword por separado).\n3. Cada idea debe ser breve (máx. 12 palabras) y clara en su enfoque.\n4. Clasificar cada idea en dos categorías:\n   - **Requiere investigación** → temas que necesitan datos actualizados, estudios recientes o estadísticas.\n   - **No requiere investigación** → temas que pueden desarrollarse con conocimiento general, sin datos recientes.\n5. Entregar el resultado en formato JSON.\n\n**Entrada:**\n${JSON.stringify({keywords: keywords}, null, 2)}\n\n**Formato de salida (JSON válido, sin markdown):**\n{\n  \"Ideas\": [\n    {\n      \"Idea\": \"título de la idea (máx 12 palabras)\",\n      \"Categoria\": \"Requiere investigación\"\n    },\n    {\n      \"Idea\": \"título de la idea (máx 12 palabras)\",\n      \"Categoria\": \"No requiere investigación\"\n    }\n  ]\n}\n\nIMPORTANTE: \n- Responde SOLO con el JSON, sin bloques de código markdown.\n- Genera EXACTAMENTE 30 ideas.\n- Mix balanceado: aproximadamente 15 con investigación y 15 sin investigación.`;\n\nreturn [{\n  json: {\n    ...$json,\n    prompt: prompt\n  }\n}];"
+      },
+      "name": "Construir Prompt Ideas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "b72aa7ab-de43-4400-b9ab-d344272286ba"
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "gpt-4o",
+        "prompt": {
+          "messages": [
+            {
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "options": {
+          "maxTokens": 2500,
+          "temperature": 0.8
+        },
+        "requestOptions": {}
+      },
+      "name": "OpenAI Chat",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        400,
+        0
+      ],
+      "id": "a87c6b2b-5e2d-4136-9168-779996643d7f",
+      "credentials": {
+        "openAiApi": {
+          "id": "IDR18P8JJHeNClOr",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== 1) Tomar el texto devuelto por OpenAI (según tu versión del nodo) =====\nlet response = $json.message?.content || $json.text || $json.response || '';\n\nresponse = String(response).trim();\n\n// Quitar fences de markdown si los hubiera\nif (response.startsWith('```json')) {\n  response = response.replace(/^```json\\s*/i, '').replace(/```$/i, '');\n} else if (response.startsWith('```')) {\n  response = response.replace(/^```\\s*/i, '').replace(/```$/i, '');\n}\n\n// ===== 2) Parsear a JSON con tolerancia =====\nlet ideasResponse;\ntry {\n  ideasResponse = JSON.parse(response);\n} catch (error) {\n  throw new Error('Error al parsear respuesta de OpenAI: ' + error.message + '\\nRespuesta: ' + response);\n}\n\nconst ideas = ideasResponse.Ideas || ideasResponse.ideas || [];\nif (ideas.length !== 30) {\n  console.warn(`Advertencia: Se esperaban 30 ideas, se recibieron ${ideas.length}`);\n}\n\n// ===== 3) Recuperar metadata del cluster desde el nodo previo correcto =====\n// Cambia el nombre EXACTO del nodo si es distinto:\nconst prevItems = $items('Preparar Keywords por Cluster');\nconst clusterData = (prevItems && prevItems[0] && prevItems[0].json) ? prevItems[0].json : {};\n\n// Fallbacks por si algo no viene\nconst cluster_id = clusterData.cluster_id || $json.cluster_id || null;\nconst cluster_name = clusterData.cluster_name || $json.cluster_name || '';\nconst keyword_principal = clusterData.keyword_principal || $json.keyword_principal || '';\n\n// ===== 4) Enriquecer cada idea con la metadata =====\nconst enriched = ideas.map((idea, index) => ({\n  cluster_id,\n  cluster_name,\n  keyword_principal,\n  idea_title: idea.Idea ?? idea.idea ?? '',\n  categoria: idea.Categoria ?? idea.categoria ?? '',\n  priority: index\n}));\n\n// ===== 5) Salida en formato n8n =====\nreturn enriched.map(i => ({ json: i }));\n"
+      },
+      "name": "Parse JSON Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        0
+      ],
+      "id": "eb28ac8d-4c25-47c7-aabd-850e5f73b7b5"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ideas (\n  keyword_cluster_id,\n  idea_title,\n  categoria,\n  status,\n  estimated_word_count,\n  priority\n)\nVALUES (\n  NULLIF('{{ $json.cluster_id }}','')::uuid,\n  '{{ String($json.idea_title).replace(/'/g,\"''\") }}',\n  '{{ $json.categoria }}',\n  'pending',\n  600,\n  {{ $json.priority || 0 }}\n)\nRETURNING id, idea_title, categoria;\n",
+        "options": {}
+      },
+      "name": "Guardar Idea en PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ],
+      "id": "648ab3f5-e3ff-4c9c-ac87-30696a8724d6",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "all_ideas",
+        "options": {}
+      },
+      "name": "Aggregate Ideas por Cluster",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        0
+      ],
+      "id": "90cea202-4be6-42e3-b5d1-204df35c1448"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar resumen por cluster\nconst ideas = $json.all_ideas || [];\n\nconst conInvestigacion = ideas.filter(i => \n  (i.categoria || '').toLowerCase().includes('requiere')\n).length;\n\nconst sinInvestigacion = ideas.length - conInvestigacion;\n\nreturn [{\n  json: {\n    cluster_id: ideas[0]?.cluster_id || 'unknown',\n    cluster_name: ideas[0]?.cluster_name || 'Unknown',\n    keyword_principal: ideas[0]?.keyword_principal || '',\n    ideas_generated: ideas.length,\n    ideas_con_investigacion: conInvestigacion,\n    ideas_sin_investigacion: sinInvestigacion\n  }\n}];"
+      },
+      "name": "Preparar Resumen por Cluster",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "id": "9ac68840-2cc0-4541-a551-bd062fa3ffa0"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "all_clusters",
+        "options": {}
+      },
+      "name": "Aggregate Todos los Clusters",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1408,
+        0
+      ],
+      "id": "1589c752-19dd-4387-b1d1-413bbd205dd4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar respuesta final con resumen de todos los clusters\nconst clusters = $json.all_clusters || [];\n\nreturn [{\n  json: {\n    status: 'success',\n    total_clusters_processed: clusters.length,\n    total_ideas_generated: clusters.reduce((sum, c) => sum + (c.ideas_generated || 0), 0),\n    clusters_details: clusters,\n    processing_time: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Preparar Respuesta Final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        0
+      ],
+      "id": "666b6516-3a86-4105-9004-28465ad5cb9b"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "name": "Respond to Webhook Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1808,
+        0
+      ],
+      "id": "a33c0587-8257-4ba4-9ca8-78f92d60d05a"
+    },
+    {
+      "parameters": {
+        "jsCode": "// No hay clusters pendientes\nreturn [{\n  json: {\n    status: 'info',\n    message: 'No hay clusters procesados pendientes para generar ideas',\n    total_clusters_processed: 0,\n    total_ideas_generated: 0,\n    clusters_details: []\n  }\n}];"
+      },
+      "name": "Mensaje No Clusters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        208
+      ],
+      "id": "bfe24448-be7a-4f37-914a-91dbdead0ad8"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "name": "Respond to Webhook No Clusters",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        208,
+        208
+      ],
+      "id": "e8d4697f-4b66-4083-8e44-d70778e5f798"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Leer Clusters Procesados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Clusters Procesados": {
+      "main": [
+        [
+          {
+            "node": "Check Clusters Existen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Clusters Existen": {
+      "main": [
+        [
+          {
+            "node": "Preparar Keywords por Cluster",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mensaje No Clusters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Keywords por Cluster": {
+      "main": [
+        [
+          {
+            "node": "Construir Prompt Ideas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Construir Prompt Ideas": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse JSON Response": {
+      "main": [
+        [
+          {
+            "node": "Guardar Idea en PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Idea en PostgreSQL": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Ideas por Cluster",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Ideas por Cluster": {
+      "main": [
+        [
+          {
+            "node": "Preparar Resumen por Cluster",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Resumen por Cluster": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Todos los Clusters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Todos los Clusters": {
+      "main": [
+        [
+          {
+            "node": "Preparar Respuesta Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Respuesta Final": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mensaje No Clusters": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook No Clusters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "6ac0e101-ffeb-46e7-a0a0-ba3d3d523569",
+  "meta": {
+    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+  },
+  "id": "PpAOklRPQjpWu4Yg",
+  "tags": [
+    {
+      "createdAt": "2025-10-16T23:45:00.633Z",
+      "updatedAt": "2025-10-16T23:45:00.633Z",
+      "id": "Jyvk52dJ2wNnSCbU",
+      "name": "SEO"
+    },
+    {
+      "name": "Ideas",
+      "id": "TQh3Q9yoqwQC6p08",
+      "createdAt": "2025-10-20T23:05:25.256Z",
+      "updatedAt": "2025-10-20T23:05:25.256Z"
+    }
+  ]
+}

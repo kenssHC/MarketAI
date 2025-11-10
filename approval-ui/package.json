@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "start": "node server/index.js",
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
     "dev:server": "nodemon --watch server --ext js,mjs,json --exec \"node server/index.js\"",
     "dev:client": "vite",

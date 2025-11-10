@@ -1,0 +1,442 @@
+{
+  "name": "SEO - 14 Publicacion WordPress",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "seo/publicar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        112
+      ],
+      "id": "425926fe-b3ee-46b4-be90-54e3707e81f1",
+      "webhookId": "publicar-wordpress-001"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  d.id AS draft_id,\n  d.idea_id,\n  d.keyword_cluster_id,\n  d.title,\n  d.meta_title,\n  d.meta_description,\n  d.tags,\n  d.content_markdown,\n  d.content_html,\n  d.word_count,\n  d.featured_image_url,\n  d.wordpress_media_id,\n  d.featured_image_alt,\n  d.featured_image_prompt,\n  d.wordpress_post_id,\n  d.wordpress_post_url,\n  d.status AS draft_status,\n  d.approved_at,\n  d.approved_by,\n  i.idea_title,\n  i.categoria,\n  k.cluster_name,\n  k.keyword_principal,\n  k.keywords_secundarias,\n  k.project_name\nFROM drafts d\nLEFT JOIN ideas i ON i.id = d.idea_id\nLEFT JOIN keywords k ON k.id = d.keyword_cluster_id\nWHERE d.id = '{{ $json.body.draft_id }}'\n  AND d.status IN ('approved', 'review')\nLIMIT 1",
+        "options": {}
+      },
+      "name": "Obtener Draft Completo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        -416,
+        112
+      ],
+      "id": "ff776012-91a4-428f-aa35-ce5b9eed93dc",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "check-draft-exists",
+              "leftValue": "={{ $items().length }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Draft Existe",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        112
+      ],
+      "id": "78c6f97a-e8d7-4621-9475-84fe7323ad1b"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ Validador tolerante + normalización\n\nconst draft = $json ?? {};\nconst errors = [];\n\n// Helpers\nconst clamp = (s = '', n = 160) =>\n  String(s).trim().length <= n\n    ? String(s).trim()\n    : String(s).trim().slice(0, n - 1).trimEnd() + '…';\n\nconst pickFirst = (...vals) => {\n  for (const v of vals) {\n    if (v !== undefined && v !== null) {\n      const s = String(v).trim();\n      if (s) return s;\n    }\n  }\n  return '';\n};\n\n// 1) Normalizar título y metas\nconst title = pickFirst(\n  draft.title,\n  draft.article_title,\n  draft.idea_title\n);\n\nconst metaTitle = pickFirst(\n  draft.meta_title,\n  title && clamp(title, 60)\n);\n\nconst metaDescription = pickFirst(\n  draft.meta_description,\n  draft.excerpt,\n  draft.resume,\n  draft.summary\n);\n\n// 2) Consolidar contenido → content_html\n// Si ya traes HTML úsalo; si no, usa content/article_text/raw_markdown como fallback.\n// (Si necesitas convertir Markdown a HTML, hazlo en un nodo aparte)\nconst contentHtml = pickFirst(\n  draft.content_html,\n  draft.content,\n  draft.article_text,\n  draft.content_markdown,\n  draft.raw_markdown\n);\n\n// 3) Validaciones mínimas\nif (!title) {\n  errors.push('Falta título del artículo');\n}\nif (!contentHtml) {\n  errors.push('Falta contenido HTML');\n}\nif (!metaTitle) {\n  errors.push('Falta meta título');\n}\n// La meta description puede ser opcional; si quieres exigirla, descomenta:\n// if (!metaDescription) errors.push('Falta meta descripción');\n\n// 4) Lanzar error si corresponde\nif (errors.length) {\n  throw new Error(`Validación fallida: ${errors.join('; ')}`);\n}\n\n// 5) Salida normalizada (mantén todo lo original + campos asegurados)\nreturn [{\n  json: {\n    ...draft,\n    title,\n    meta_title: metaTitle,\n    meta_description: metaDescription,\n    // Campo estandarizado que usarán los nodos de publicación\n    content_html: contentHtml\n  }\n}];"
+      },
+      "name": "Validar Datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "5ec91883-f418-4668-8bb2-08742656e0a0"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== 1. Entradas base =====\nconst draft = $json;\nconst body = $items('Webhook', 0)[0].json.body || {};\n\n// ===== 2. Credenciales / config WP =====\nconst wpAuthHeader =\n  body.wordpress_auth_header ||\n  draft.wordpress_auth_header ||\n  $env.WORDPRESS_AUTH_HEADER;\n\nconst wpNonce =\n  body.wordpress_nonce ||\n  draft.wordpress_nonce ||\n  $env.WORDPRESS_NONCE;\n\nif (!wpAuthHeader) {\n  throw new Error('Falta wordpress_auth_header para autenticación');\n}\n\n// Endpoint oficial limpio\nconst wordpressPostsEndpoint = 'https://larabs.pe/wp-json/wp/v2/posts';\n\n// ===== 3. Helpers =====\n\n// (A) quitar bloque de \"frontmatter\" o cabecera SEO\n// Reglas:\n// - si el texto empieza con \"---\", quitamos todo hasta la siguiente línea con el primer heading real\n// - si no empieza con \"---\" pero las primeras líneas tienen \"Meta Title:\", \"Meta Description:\", \"Tags:\",\n//   también las removemos manualmente\nfunction stripFrontmatterOrSeoHeader(mdRaw) {\n  if (!mdRaw) return '';\n  let md = mdRaw.trim();\n\n  // Caso 1: bloque tipo frontmatter con '---'\n  if (md.startsWith('---')) {\n    const lines = md.split('\\n');\n    let startIndex = 0;\n    for (let i = 0; i < lines.length; i++) {\n      const t = lines[i].trim();\n      if (/^#\\s+/.test(t) || /^##\\s+/.test(t)) {\n        startIndex = i;\n        break;\n      }\n    }\n    md = lines.slice(startIndex).join('\\n').trim();\n  } else {\n    // Caso 2: cabecera SEO suelta sin las rayas ---\n    // Ejemplo:\n    // Meta Title: ...\n    // Meta Description: ...\n    // Tags: ...\n    // # Título real\n    const lines = md.split('\\n');\n    let firstHeadingIndex = 0;\n    for (let i = 0; i < lines.length; i++) {\n      const t = lines[i].trim();\n      if (/^#\\s+/.test(t) || /^##\\s+/.test(t)) {\n        firstHeadingIndex = i;\n        break;\n      }\n    }\n    md = lines.slice(firstHeadingIndex).join('\\n').trim();\n  }\n\n  return md;\n}\n\n// (B) convertir markdown -> HTML básico\n// - \"# Título\" => <h1>...</h1>\n// - \"## Subtítulo\" => <h2>...</h2>\n// - \"### ...\" => <h3>...</h3>\n// - líneas normales => <p>...</p>\nfunction markdownToBasicHtml(md) {\n  if (!md) return '';\n\n  const lines = md.split('\\n');\n\n  let sawMainHeading = false;\n\n  const htmlLines = lines.map(line => {\n    const t = line.trim();\n\n    // Si la línea empieza con \"# \" (nivel h1 en markdown)\n    if (/^#\\s+/.test(t)) {\n      if (!sawMainHeading) {\n        // Primera vez que vemos un H1 → NO lo incluimos en el contenido\n        sawMainHeading = true;\n        return '';\n      } else {\n        // Si aparece otro \"# ...\" después del primero,\n        // lo tratamos como subtítulo h2\n        return '<h2>' + t.replace(/^#\\s+/, '') + '</h2>';\n      }\n    }\n    \n    if (/^##\\s+/.test(t)) {\n      return '<h2>' + t.replace(/^##\\s+/, '') + '</h2>';\n    }\n    if (/^###\\s+/.test(t)) {\n      return '<h3>' + t.replace(/^###\\s+/, '') + '</h3>';\n    }\n\n    if (t === '') {\n      return '';\n    }\n\n    return '<p>' + t + '</p>';\n  });\n\n  return htmlLines.filter(l => l !== '').join('\\n');\n}\n\n// ===== 4. Preparar el cuerpo del artículo =====\n// En tu BD, content_html en realidad es markdown (lo vimos con \"# ...\"), así que lo tratamos como markdown fuente.\nconst markdownSource =\n  (draft.content_html && draft.content_html.trim().length > 0\n    ? draft.content_html\n    : draft.content_markdown || ''\n  );\n\n// 1. Quitamos cabecera de SEO tipo \"Meta Title / Meta Description / Tags\"\nconst cleanMarkdown = stripFrontmatterOrSeoHeader(markdownSource);\n\n// 2. Convertimos ese markdown ya limpio a HTML básico\nlet articleHtml = markdownToBasicHtml(cleanMarkdown);\n\n// fallback defensivo\nif (!articleHtml || articleHtml.trim().length === 0) {\n  articleHtml = '<p>(Contenido no disponible)</p>';\n}\n\n// ===== 4.1 Inyectar imagen destacada al inicio del contenido =====\n// Si tenemos featured_image_url, metemos un bloque <figure> antes del contenido.\n// Esto asegura que el lector vea la imagen aunque todavía no tengamos featured_media asignado.\nlet footerImageBlock = '';\n\nif (\n  draft.featured_image_url &&\n  typeof draft.featured_image_url === 'string' &&\n  draft.featured_image_url.trim().length > 0\n) {\n  const altText =\n    (draft.featured_image_alt && draft.featured_image_alt.trim().length > 0)\n      ? draft.featured_image_alt.trim()\n      : draft.title || 'Imagen del artículo';\n\n  footerImageBlock = `\n    <figure style=\"margin:2rem 0 0 0;text-align:center;\">\n      <img src=\"${draft.featured_image_url}\" alt=\"${altText}\" style=\"max-width:100%;height:auto;border-radius:4px;\" />\n    </figure>\n  `;\n}\n\n// importante: imagen DESPUÉS del contenido, no antes\nconst finalHtml = articleHtml + '\\n' + footerImageBlock;\n\n// excerpt bonito = meta_description (para la vista de listado en algunos themes)\nconst safeExcerpt = draft.meta_description || '';\n\n// ===== 5. Payload final para WP =====\nconst postPayload = {\n  title: draft.title,\n  status: body.wp_status || 'publish',\n  content: finalHtml,          // <-- incluye imagen + html limpio\n  excerpt: safeExcerpt,\n  comment_status: 'open',\n  ping_status: 'open',\n};\n\n// Featured image oficial (featured_media):\n// - Si ya tenemos el ID real de WP en draft.wordpress_media_id, lo mandamos.\n// - Si aún es null, simplemente no lo mandamos y WordPress no lo usará.\n//   Igual la imagen ya está inline en el <content>.\n/*if (draft.wordpress_media_id) {\n  const parsedMediaId = parseInt(draft.wordpress_media_id, 10);\n  if (!isNaN(parsedMediaId)) {\n    postPayload.featured_media = parsedMediaId;\n  }\n} else if (\n  draft.featured_image_url &&\n  draft.featured_image_url.includes('wp-content')\n) {\n  // fallback heurístico muy débil: intenta raspar un número de la URL\n  // (este fallback es opcional; lo dejamos por compatibilidad con tu versión anterior)\n  const matches = draft.featured_image_url.match(/(\\d+)(?=\\.\\w+$)/);\n  if (matches && matches[1]) {\n    const parsedMediaId = parseInt(matches[1], 10);\n    if (!isNaN(parsedMediaId)) {\n      postPayload.featured_media = parsedMediaId;\n    }\n  }\n}*/\n\n// Meta SEO (Yoast). Si tu WP devuelve 400/403 por campos meta bloqueados, comenta este bloque.\npostPayload.meta = {\n  _yoast_wpseo_title: draft.meta_title || draft.title || '',\n  _yoast_wpseo_metadesc: draft.meta_description || '',\n};\n\n// Tags: dejamos solo si tienes IDs numéricos válidos\nif (\n  draft.tags_array &&\n  Array.isArray(draft.tags_array) &&\n  draft.tags_array.length > 0\n) {\n  const numericTags = draft.tags_array\n    .map(t => parseInt(t, 10))\n    .filter(n => !isNaN(n));\n  if (numericTags.length > 0) {\n    postPayload.tags = numericTags;\n  }\n}\n\n// ===== 6. Devolver al siguiente nodo =====\nreturn {\n  json: {\n    ...draft,\n    wordpress_payload: postPayload,\n    wordpress_posts_endpoint: wordpressPostsEndpoint,\n    wordpress_auth_header: wpAuthHeader,\n    wordpress_nonce: wpNonce,\n    prepared_at: new Date().toISOString(),\n  },\n};"
+      },
+      "name": "Preparar Payload WordPress",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "49b8ce22-e4f5-4f61-90fe-6b6cc4e28d53"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://larabs.pe/wp-json/wp/v2/posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Basic RExBUkE3Nzk2OmlRbHFLU3U2SURHRmdNa1RSNjltc29wOA=="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.wordpress_payload) }}",
+        "options": {}
+      },
+      "name": "Publicar en WordPress",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "58b0502b-e449-4a0f-b97c-9f029ce7b493"
+    },
+    {
+      "parameters": {
+        "jsCode": "const wpResponse = $json;\nconst draftData = $items('Preparar Payload WordPress', 0)[0].json;\n\n// Extraer datos de la respuesta de WordPress\nconst wpPostId = wpResponse.id || null;\nconst wpPostUrl = wpResponse.link || wpResponse.guid?.rendered || null;\nconst wpStatus = wpResponse.status || 'publish';\n\nif (!wpPostId) {\n  throw new Error('WordPress no devolvió ID del post');\n}\n\nreturn {\n  json: {\n    draft_id: draftData.draft_id,\n    wordpress_post_id: wpPostId,\n    wordpress_post_url: wpPostUrl,\n    wordpress_status: wpStatus,\n    published_at: new Date().toISOString(),\n    wordpress_response: wpResponse\n  }\n};"
+      },
+      "name": "Extraer Datos WordPress",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "be9de592-1224-44c5-b4fb-5aabaaf38bf7"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE drafts\nSET \n  wordpress_post_id = {{ $json.wordpress_post_id }},\n  wordpress_post_url = '{{ $json.wordpress_post_url }}',\n  published_at = NOW(),\n  status = 'published',\n  updated_at = NOW()\nWHERE id = '{{ $json.draft_id }}'\nRETURNING id, wordpress_post_id, wordpress_post_url, published_at, status",
+        "options": {}
+      },
+      "name": "Actualizar Draft",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        832,
+        0
+      ],
+      "id": "30a5a727-3706-4f9d-bf30-dee362019e7b",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE scheduled_publications\nSET \n  status = 'published',\n  wordpress_post_id = {{ $items('Extraer Datos WordPress', 0)[0].json.wordpress_post_id }},\n  wordpress_post_url = '{{ $items('Extraer Datos WordPress', 0)[0].json.wordpress_post_url }}',\n  published_at = NOW(),\n  updated_at = NOW()\nWHERE draft_id = '{{ $items('Extraer Datos WordPress', 0)[0].json.draft_id }}'\n  AND status = 'pending'\nRETURNING id, draft_id, status, published_at",
+        "options": {}
+      },
+      "name": "Actualizar Scheduled Publications",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "4429e487-69b6-47dc-9eaf-3a20c6ee6009",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const wpData = $items('Extraer Datos WordPress', 0)[0].json;\nconst draftUpdate = $items('Actualizar Draft', 0)[0].json;\nconst scheduledUpdate = $items('Actualizar Scheduled Publications', 0)[0].json || {};\nconst originalDraft = $items('Validar Datos', 0)[0].json;\n\nconst jobLog = {\n  job_name: 'wordpress_publish',\n  job_type: 'wordpress_publish',\n  status: 'success',\n  draft_id: wpData.draft_id,\n  idea_id: originalDraft.idea_id || null,\n  keyword_cluster_id: originalDraft.keyword_cluster_id || null,\n  started_at: originalDraft.validation_timestamp || new Date().toISOString(),\n  completed_at: new Date().toISOString(),\n  duration_ms: null,\n  input_data: {\n    draft_id: wpData.draft_id,\n    title: originalDraft.title,\n    wordpress_endpoint: originalDraft.wordpress_posts_endpoint\n  },\n  output_data: {\n    wordpress_post_id: wpData.wordpress_post_id,\n    wordpress_post_url: wpData.wordpress_post_url,\n    wordpress_status: wpData.wordpress_status,\n    scheduled_updated: !!scheduledUpdate.id\n  },\n  metadata: {\n    draft_title: originalDraft.title,\n    project_name: originalDraft.project_name,\n    word_count: originalDraft.word_count,\n    has_featured_image: !!originalDraft.featured_image_url\n  }\n};\n\nif (originalDraft.validation_timestamp) {\n  const start = new Date(originalDraft.validation_timestamp).getTime();\n  const end = new Date().getTime();\n  jobLog.duration_ms = end - start;\n}\n\nreturn {\n  json: jobLog\n};"
+      },
+      "name": "Preparar Job Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        0
+      ],
+      "id": "b97c5a7c-5b79-4ade-bccf-4b1ac6e850fa"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO jobs_log (\n  job_name,\n  job_type,\n  status,\n  started_at,\n  completed_at,\n  duration_ms,\n  input_data,\n  output_data) VALUES (\n  '{{ $json.job_name }}',\n  '{{ $json.job_type }}',\n  '{{ $json.status }}',\n  '{{ $json.started_at }}',\n  '{{ $json.completed_at }}',\n  {{ $json.duration_ms || \"NULL\" }},\n  '{{ JSON.stringify($json.input_data) }}'::jsonb,\n  '{{ JSON.stringify($json.output_data) }}'::jsonb)\nRETURNING id, job_name, status, completed_at",
+        "options": {}
+      },
+      "name": "Insertar Job Log",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        0
+      ],
+      "id": "2afcf848-d9f8-4aaf-b81f-022d91975a58",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const wpData = $items('Extraer Datos WordPress', 0)[0].json;\nconst draftData = $items('Validar Datos', 0)[0].json;\nconst jobLog = $items('Insertar Job Log', 0)[0].json;\n\nreturn {\n  json: {\n    status: 'success',\n    message: 'Artículo publicado exitosamente en WordPress',\n    draft_id: wpData.draft_id,\n    wordpress_post_id: wpData.wordpress_post_id,\n    wordpress_post_url: wpData.wordpress_post_url,\n    wordpress_status: wpData.wordpress_status,\n    published_at: wpData.published_at,\n    job_log_id: jobLog.id,\n    draft_title: draftData.title,\n    project_name: draftData.project_name\n  }\n};"
+      },
+      "name": "Preparar Respuesta Final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        0
+      ],
+      "id": "a606229a-cdeb-40b0-bc95-1e3700873e89"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1872,
+        0
+      ],
+      "id": "8091a320-fb6a-4724-857c-09b5f8f47e43"
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  json: {\n    status: 'error',\n    message: 'Draft no encontrado o no está aprobado',\n    draft_id: $items('Webhook', 0)[0].json.body.draft_id || null\n  }\n};"
+      },
+      "name": "Error Draft No Encontrado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        224
+      ],
+      "id": "ed292687-d22a-4994-9f03-e5d026c11e15"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {
+          "responseCode": 404
+        }
+      },
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        208,
+        224
+      ],
+      "id": "8823e29b-d09d-4e12-a33f-7616e4add5a1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Obtener Draft Completo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Draft Completo": {
+      "main": [
+        [
+          {
+            "node": "Draft Existe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Existe": {
+      "main": [
+        [
+          {
+            "node": "Validar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Draft No Encontrado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Datos": {
+      "main": [
+        [
+          {
+            "node": "Preparar Payload WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Payload WordPress": {
+      "main": [
+        [
+          {
+            "node": "Publicar en WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publicar en WordPress": {
+      "main": [
+        [
+          {
+            "node": "Extraer Datos WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Datos WordPress": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Draft": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Scheduled Publications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Scheduled Publications": {
+      "main": [
+        [
+          {
+            "node": "Preparar Job Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Job Log": {
+      "main": [
+        [
+          {
+            "node": "Insertar Job Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar Job Log": {
+      "main": [
+        [
+          {
+            "node": "Preparar Respuesta Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Respuesta Final": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Draft No Encontrado": {
+      "main": [
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "069b2702-8d9d-4ae4-b4ed-b0898be2e679",
+  "meta": {
+    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+  },
+  "id": "510ecf5irxDFb329",
+  "tags": []
+}

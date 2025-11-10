@@ -1,0 +1,181 @@
+{
+  "name": "SEO - 05 Ingesta Keywords CSV",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "seo/ingesta/csv",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "c9475af5-4e4e-4018-9a71-7391f312b0f4",
+      "webhookId": "98c7adfc-2c4d-45ee-af09-5bb5fc5bac46"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse CSV data from Google Keyword Planner\n// El webhook envía los datos en el objeto 'body'\nconst inputData = $input.first().json;\n\n// Los datos vienen en inputData.body\nconst webhookBody = inputData.body || inputData;\n\nconst csvData = webhookBody.csv_data;\nconst projectName = webhookBody.project_name || null;\nconst clusterName = webhookBody.cluster_name || 'Keywords Import';\nconst source = 'gkp';\n\nif (!csvData) {\n  throw new Error('csv_data es requerido. Datos recibidos: ' + JSON.stringify(inputData));\n}\n\n// Split CSV into lines\nconst lines = csvData.trim().split('\\n');\n\n// Process each keyword (skip header)\nconst outputItems = [];\nfor (let i = 1; i < lines.length; i++) {\n  const line = lines[i].trim();\n  if (!line) continue;\n  \n  const values = line.split(',');\n  if (values.length >= 2 && values[0].trim()) {\n    outputItems.push({\n      json: {\n        keyword: values[0].trim().replace(/\"/g, ''),\n        search_volume: values[1] ? parseInt(values[1].replace(/[^0-9]/g, '')) || 0 : 0,\n        competition: values[2] ? values[2].trim().replace(/\"/g, '') : 'Unknown',\n        cluster_name: clusterName,\n        project_name: projectName,\n        source: source\n      }\n    });\n  }\n}\n\nif (outputItems.length === 0) {\n  throw new Error('No se encontraron keywords válidas en el CSV');\n}\n\nreturn outputItems;"
+      },
+      "name": "Parse CSV",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        0
+      ],
+      "id": "acb13f86-7558-4726-b0ce-c560d85af74d"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO keywords (\n  cluster_name,\n  keyword_principal,\n  keywords_secundarias,\n  source,\n  search_volume,\n  competition,\n  search_intent,\n  status,\n  project_name\n)\nVALUES (\n  '{{ $json.cluster_name.replace(/'/g, \"''\") }}',\n  '{{ $json.keyword.replace(/'/g, \"''\") }}',\n  '[]'::jsonb,\n  '{{ $json.source }}',\n  {{ $json.search_volume }},\n  '{{ $json.competition.replace(/'/g, \"''\") }}',\n  'informacional',\n  'pending',\n  {{ $json.project_name ? \"'\" + $json.project_name.replace(/'/g, \"''\") + \"'\" : \"NULL\" }}\n)\nON CONFLICT (keyword_principal) DO UPDATE\nSET \n  search_volume = EXCLUDED.search_volume,\n  competition = EXCLUDED.competition,\n  updated_at = CURRENT_TIMESTAMP\nRETURNING id, keyword_principal, created_at;",
+        "options": {}
+      },
+      "name": "Guardar en PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "id": "a7ee793c-643f-4ef2-a37d-0a5890ad4ee0",
+      "credentials": {
+        "postgres": {
+          "id": "EmQwHYycOpHw660p",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "all_keywords",
+        "options": {}
+      },
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "c872a98d-056e-4afd-9af8-f15b4f5d1e02"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Preparar Respuesta",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        848,
+        0
+      ],
+      "id": "11a21aa5-c7b8-464e-8c28-221e9738ff07"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1072,
+        0
+      ],
+      "id": "fa150aea-0992-4ab4-a8db-01b8a4ff2109"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse CSV": {
+      "main": [
+        [
+          {
+            "node": "Guardar en PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar en PostgreSQL": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Preparar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Respuesta": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d46d620f-cfee-48c3-94d0-56b6216a45ca",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+  },
+  "id": "rY3JY6aO9OcM9hCa",
+  "tags": [
+    {
+      "createdAt": "2025-10-16T23:45:00.633Z",
+      "updatedAt": "2025-10-16T23:45:00.633Z",
+      "id": "Jyvk52dJ2wNnSCbU",
+      "name": "SEO"
+    },
+    {
+      "createdAt": "2025-10-17T20:03:03.929Z",
+      "updatedAt": "2025-10-17T20:03:03.929Z",
+      "id": "H2Af7KIePlyZ9uu5",
+      "name": "Ingesta"
+    }
+  ]
+}
