@@ -1381,7 +1381,7 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
               onClick={() => setShowScheduleForm(!showScheduleForm)}
               disabled={scheduling}
             >
-              📆 Programar Publicación
+              Programar Publicación
             </button>
           </div>
           
@@ -1410,7 +1410,7 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
               </div>
               {scheduledDate && (
                 <p className="schedule-info">
-                  📌 Se publicará el {new Date(scheduledDate).toLocaleDateString('es-ES')} a las {scheduledTime}
+                  Se publicará el {new Date(scheduledDate).toLocaleDateString('es-ES')} a las {scheduledTime}
                 </p>
               )}
               <button 

@@ -1,4 +1,4 @@
-import { query } from '../db.js';
+﻿import { query } from '../db.js';
 import callN8nWebhook from './n8n.js';
 import config from '../config.js';
 
@@ -195,6 +195,31 @@ export async function checkAndPublishScheduled() {
         if (wpResponse.status === 'success') {
           // Marcar como publicado (el workflow ya actualiza la tabla)
           console.log(`[scheduler] Publicado: ${pub.title}`);
+
+          try {
+            const socialResponse = await callN8nWebhook('seo/social/copy/db', {
+              draft_id: pub.draft_id,
+              limit: 1,
+              platforms: ['linkedin', 'facebook']
+            });
+
+            if (socialResponse?.status === 'success') {
+              console.log(`[scheduler] Copys sociales generadas para ${pub.title}`);
+            } else if (socialResponse?.status === 'empty') {
+              console.log(`[scheduler] Copys sociales ya existentes para ${pub.title}`);
+            } else {
+              console.warn(`[scheduler] Resultado inesperado al generar copys sociales para ${pub.title}:`, socialResponse);
+            }
+          } catch (socialError) {
+            console.error(`[scheduler] Error al generar copys sociales para "${pub.title}":`, socialError.message);
+            await query(
+              `UPDATE scheduled_publications 
+               SET last_error = $1,
+                   updated_at = NOW()
+               WHERE id = $2`,
+              [`Social copy workflow failed: ${socialError.message}`, pub.id]
+            );
+          }
         } else {
           throw new Error(wpResponse.message || 'Error desconocido del workflow');
         }

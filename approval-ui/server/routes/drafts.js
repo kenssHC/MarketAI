@@ -530,6 +530,23 @@ router.post('/:id/publish-now', async (req, res) => {
     });
 
     if (wpResponse.status === 'success') {
+      // Tras publicar en WP, generar/guardar copys sociales (LinkedIn/Facebook)
+      try {
+        const socialResponse = await callN8nWebhook('seo/social/copy/db', {
+          draft_id: id,
+          limit: 1,
+          platforms: ['linkedin', 'facebook']
+        });
+        if (socialResponse?.status === 'success') {
+          console.log('[api] Copys sociales generadas para publicación inmediata');
+        } else if (socialResponse?.status === 'empty') {
+          console.log('[api] Copys sociales ya existentes para publicación inmediata');
+        } else {
+          console.warn('[api] Resultado inesperado al generar copys sociales (publish-now):', socialResponse);
+        }
+      } catch (socialError) {
+        console.error('[api] failed to generate social copies (publish-now)', socialError);
+      }
       res.json({
         message: 'Artículo publicado exitosamente',
         wordpress_post_id: wpResponse.wordpress_post_id,
