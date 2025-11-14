@@ -59,6 +59,72 @@ const normalizePreviewPayload = (preview) => {
   };
 };
 
+const buildArticlePrompt = (ideaTitle = 'Artículo', wordCount = 600) => {
+  const safeIdea = ideaTitle || 'Artículo';
+  const targetWords = Math.max(400, Number(wordCount) || 600);
+  return `Actúa como un redactor profesional especializado en SEO Y GEO (Generative Engine Optimization).
+
+Recibirás una idea de contenido.
+
+**Idea:** ${safeIdea}
+
+Tu tarea es redactar un artículo optimizado para SEO Y GEO (Generative Engine Optimization):
+
+1. Usar la idea como título principal (H1)
+2. Incluir párrafo introductorio breve y atractivo
+3. Desarrollar contenido de al menos ${targetWords} palabras
+4. Usar subtítulos (H2, H3) para organizar la información
+5. Lenguaje claro, fluido y fácil de leer
+6. Integrar keywords naturalmente si son evidentes
+7. Conclusión con resumen o CTA cuando sea relevante
+8. Contenido 100% original, sin plagio
+
+**Metadatos SEO:**
+- Meta Title: máximo 60 caracteres, atractivo, con keyword
+- Meta Description: máximo 155 caracteres, persuasiva, invite al clic
+- Tags: 5 a 8 etiquetas relevantes separadas por comas
+
+**Formato de salida (Markdown con frontmatter):**
+---
+Meta Title: [Texto aquí]
+Meta Description: [Texto aquí]
+Tags: [tag1, tag2, tag3, ...]
+---
+
+# [Título del artículo]
+
+[Párrafo introductorio...]
+
+## [Subtítulo H2]
+[Contenido de la sección...]
+
+## [Subtítulo H2]
+[Contenido de la sección...]
+
+**Conclusión:** [Párrafo final con resumen...]
+
+IMPORTANTE:
+- Responde SOLO con el Markdown completo, sin bloques de código.
+- Incluye el frontmatter con los metadatos.
+- El contenido debe tener al menos ${targetWords} palabras.`;
+};
+
+const deriveArticlePrompt = (draft, idea) => {
+  const ideaTitle =
+    idea?.idea_title ||
+    draft?.ideaTitle ||
+    draft?.title ||
+    draft?.metaTitle ||
+    'Artículo';
+  const estimate =
+    idea?.estimated_word_count ||
+    draft?.estimatedWordCount ||
+    draft?.estimated_word_count ||
+    draft?.wordCount ||
+    600;
+  return buildArticlePrompt(ideaTitle, estimate);
+};
+
 function Toast({ toast }) {
   if (!toast) return null;
   return (
@@ -1192,6 +1258,7 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
   const [imageGenerating, setImageGenerating] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [scheduling, setScheduling] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   
   // Estados de programación
   const [showScheduleForm, setShowScheduleForm] = useState(false);
@@ -1202,15 +1269,24 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
   const displayAltText = draft.preview_image_alt || draft.featuredImageAlt || draft.featured_image_alt || 'Imagen generada';
   const displayPrompt = draft.preview_image_visual_prompt || draft.featuredImagePrompt || draft.featured_image_prompt || '';
   const isPreviewImage = Boolean(draft.preview_image_data_url);
+  const articlePrompt = useMemo(() => deriveArticlePrompt(draft, idea), [draft, idea]);
 
   useEffect(() => {
     setContent(draft.contentMarkdown || draft.content_markdown || '');
     setMetaTitle(draft.metaTitle || draft.meta_title || '');
     setMetaDescription(draft.metaDescription || draft.meta_description || '');
     setTags((draft.tags || []).join(', '));
+    setIsDirty(false);
   }, [draft]);
 
-  async function handleSave() {
+  async function handleSave(options = {}) {
+    const { silent = false, force = false } = options;
+    if (!isDirty && !force) {
+      if (!silent) {
+        onToast('No hay cambios por guardar.', 'info');
+      }
+      return false;
+    }
     try {
       setSaving(true);
       const response = await updateDraft(draft.id, {
@@ -1220,7 +1296,9 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
         contentMarkdown: content,
         tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean)
       });
-      onToast('Borrador actualizado', 'success');
+      if (!silent) {
+        onToast('Borrador actualizado', 'success');
+      }
       const nextDraft = response?.draft
         ? {
             ...response.draft,
@@ -1232,9 +1310,12 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
           }
         : draft;
       onSaved(nextDraft);
+      setIsDirty(false);
+      return true;
     } catch (error) {
       console.error(error);
       onToast(error.message, 'error');
+      return false;
     } finally {
       setSaving(false);
     }
@@ -1293,6 +1374,10 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
   }
 
   async function handlePublishNow() {
+    if (isDirty) {
+      const saved = await handleSave({ silent: true });
+      if (!saved) return;
+    }
     try {
       setPublishing(true);
       await approveDraft(draft.id, {
@@ -1319,6 +1404,10 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
     if (!scheduledDate) {
       onToast('Selecciona una fecha', 'error');
       return;
+    }
+    if (isDirty) {
+      const saved = await handleSave({ silent: true });
+      if (!saved) return;
     }
     try {
       setScheduling(true);
@@ -1348,6 +1437,24 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
 
   async function handleRegenerate() {
     if (!keyword) {
+      onToast('No se puede regenerar este artículo porque no hay keyword asociada.', 'error');
+      return;
+    }
+    if (isDirty) {
+      const confirmation = await Swal.fire({
+        icon: 'warning',
+        title: '¿Reemplazar el contenido actual?',
+        text: 'Perderás los cambios no guardados si generas un artículo nuevo.',
+        confirmButtonText: 'Sí, regenerar',
+        cancelButtonText: 'Cancelar',
+        showCancelButton: true,
+        focusCancel: true
+      });
+      if (!confirmation.isConfirmed) {
+        return;
+      }
+    }
+    if (!keyword) {
       onToast('No se puede regenerar: falta información de la keyword', 'error');
       return;
     }
@@ -1372,6 +1479,7 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
           }
         : regenerated;
       onRegenerated(normalized);
+      setIsDirty(false);
     } catch (error) {
       console.error(error);
       onToast(error.message, 'error');
@@ -1451,31 +1559,11 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
             <textarea
               id="editor-content-textarea"
               value={content}
-              onChange={(event) => setContent(event.target.value)}
+              onChange={(event) => {
+                setContent(event.target.value);
+                setIsDirty(true);
+              }}
             />
-            
-            {idea && (
-              <>
-                <label>Prompt utilizado para generar el artículo:</label>
-                <textarea
-                  className="small-textarea"
-                  value={idea.idea_title || ''}
-                  readOnly
-                />
-              </>
-            )}
-            
-            {keyword && (
-              <div className="editor-actions">
-                <button
-                  className="btn btn-secondary"
-                  onClick={handleRegenerate}
-                  disabled={regenerating}
-                >
-                  {regenerating ? 'Generando...' : 'Generar de nuevo'}
-                </button>
-              </div>
-            )}
           </section>
 
           <section className="editor-sidebar">
@@ -1485,22 +1573,47 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
               <input
                 type="text"
                 value={metaTitle}
-                onChange={(event) => setMetaTitle(event.target.value)}
+                onChange={(event) => {
+                  setMetaTitle(event.target.value);
+                  setIsDirty(true);
+                }}
               />
 
               <label>Meta Descripción</label>
               <textarea
                 className="small-textarea"
                 value={metaDescription}
-                onChange={(event) => setMetaDescription(event.target.value)}
+                onChange={(event) => {
+                  setMetaDescription(event.target.value);
+                  setIsDirty(true);
+                }}
               />
 
               <label>Palabras Clave</label>
               <input
                 type="text"
                 value={tags}
-                onChange={(event) => setTags(event.target.value)}
+                onChange={(event) => {
+                  setTags(event.target.value);
+                  setIsDirty(true);
+                }}
               />
+            </div>
+
+            <h3>Prompt de Artículo</h3>
+            <div className="card card--sub">
+              <textarea
+                className="small-textarea"
+                value={articlePrompt}
+                readOnly
+              />
+              <button
+                className="btn btn-secondary"
+                onClick={handleRegenerate}
+                disabled={regenerating || !keyword}
+              >
+                {regenerating ? 'Generando...' : 'Generar nuevamente'}
+              </button>
             </div>
 
             <h3>Imagen Principal</h3>
@@ -1522,10 +1635,10 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
                 <p className="muted">Aun no se ha generado una imagen para este articulo.</p>
               )}
               
-              <label>Prompt de imagen:</label>
+              <label>Prompt de imagen</label>
               <textarea
                 className="small-textarea"
-                value={displayPrompt}
+                value={displayPrompt || 'Aún no se genera una imagen para este artículo.'}
                 readOnly
               />
               
@@ -1603,7 +1716,7 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
           <div className="spacer" />
           <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
           <button className="btn btn-secondary" disabled>Eliminar</button>
-          <button className="btn btn-secondary" onClick={handleSave} disabled={saving}>
+          <button className="btn btn-secondary" onClick={() => handleSave()} disabled={saving || !isDirty}>
             {saving ? 'Guardando...' : 'Guardar'}
           </button>
           <button className="btn btn-primary" onClick={handleApprove} disabled={approving}>
