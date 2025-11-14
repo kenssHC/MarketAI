@@ -448,18 +448,21 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
     }
 
     try {
-      const preview = await file.text();
-      if (preview.includes('\uFFFD')) {
-        onToast(
-          'El archivo parece estar en otra codificación. Exporta nuevamente como "CSV UTF-8 (delimitado por comas)".\n' +
-            'Excel: Archivo → Guardar como → CSV UTF-8.\n' +
-            'Google Sheets: Archivo → Descargar → CSV (.csv).',
-          'error'
-        );
-        event.target.value = '';
-        return;
-      }
+      const buffer = await file.arrayBuffer();
+      const decoder = new TextDecoder('utf-8', { fatal: true });
+      decoder.decode(buffer);
+    } catch (_decodeError) {
+      onToast(
+        'El archivo parece estar en otra codificación. Exporta nuevamente como "CSV UTF-8 (delimitado por comas)".\n' +
+          'Excel: Archivo → Guardar como → CSV UTF-8.\n' +
+          'Google Sheets: Archivo → Descargar → CSV (.csv).',
+        'error'
+      );
+      event.target.value = '';
+      return;
+    }
 
+    try {
       setCsvUploading(true);
       const formData = new FormData();
       formData.append('file', file);
