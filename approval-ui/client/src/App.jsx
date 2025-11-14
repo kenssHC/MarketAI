@@ -494,29 +494,86 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
       return;
     }
 
+    let stopRequested = false;
+    const total = pending.length;
+
+    const updateProgress = (completed, label) => {
+      const container = Swal.getHtmlContainer();
+      if (!container) return;
+      const progressEl = container.querySelector('#swal-progress-text');
+      const detailEl = container.querySelector('#swal-current-label');
+      if (progressEl) {
+        progressEl.textContent = `Artículos creados ${completed} de ${total}`;
+      }
+      if (detailEl) {
+        detailEl.textContent = label || '';
+      }
+    };
+
+    Swal.fire({
+      title: 'Generando artículos',
+      html: `
+        <p id="swal-progress-text">Artículos creados 0 de ${total}</p>
+        <p id="swal-current-label" class="muted"></p>
+        <button type="button" id="swal-stop-btn" class="swal2-cancel swal2-styled" style="margin-top:12px;">Detener</button>
+      `,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false,
+      didOpen: () => {
+        const popup = Swal.getPopup();
+        const stopBtn = popup?.querySelector('#swal-stop-btn');
+        stopBtn?.addEventListener('click', () => {
+          if (stopRequested) return;
+          stopRequested = true;
+          stopBtn.disabled = true;
+          stopBtn.textContent = 'Deteniendo...';
+        });
+      }
+    });
+
     try {
       setGenerating(true);
-      let lastBundle = null;
+      let processed = 0;
 
       for (let index = 0; index < pending.length; index += 1) {
         const keywordItem = pending[index];
         setGenerationInfo({
-          total: pending.length,
+          total,
           current: index + 1,
           label: keywordItem.keyword_principal
         });
 
-        const result = await generateArticleFromKeyword(keywordItem.id, {
+        updateProgress(processed, `Procesando: ${keywordItem.keyword_principal}`);
+
+        await generateArticleFromKeyword(keywordItem.id, {
           projectName: keywordItem.project_name || projectName,
           generateImage: true
         });
 
-        lastBundle = result;
+        processed += 1;
+        updateProgress(
+          processed,
+          stopRequested ? 'Deteniendo después de completar el artículo actual...' : ''
+        );
+
         onToast(`Articulo e imagen generados para "${keywordItem.keyword_principal}"`, 'success');
+
+        if (stopRequested) {
+          break;
+        }
       }
 
+      Swal.close();
       loadKeywords();
+
+      if (stopRequested) {
+        onToast(`Proceso detenido. Se generaron ${processed} de ${total} artículos.`, 'info');
+      } else {
+        onToast('Todos los articulos fueron generados.', 'success');
+      }
     } catch (error) {
+      Swal.close();
       console.error(error);
       onToast(error.message, 'error');
     } finally {
@@ -584,8 +641,21 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
   }
 
   async function handleDeleteAll() {
-    const confirmed = window.confirm('Eliminar TODAS las keywords? Esta accion no se puede deshacer.');
-    if (!confirmed) return;
+    const result = await Swal.fire({
+      title: '¿Eliminar todas las keywords?',
+      text: 'Esta acción no se puede deshacer.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      focusCancel: true,
+      reverseButtons: true
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
     try {
       setLoading(true);
       await deleteAllKeywords();
