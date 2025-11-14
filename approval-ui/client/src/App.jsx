@@ -431,7 +431,35 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
   async function handleCsvUpload(event) {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    const allowedExtensions = ['.csv'];
+    const fileName = file.name?.toLowerCase() || '';
+    const hasValidExtension = allowedExtensions.some((ext) => fileName.endsWith(ext));
+
+    if (!hasValidExtension) {
+      onToast(
+        'El archivo no es CSV válido. Guarda tu documento como "CSV UTF-8 (delimitado por comas)" y vuelve a subirlo.\n' +
+          'Excel: Archivo → Guardar como → CSV UTF-8.\n' +
+          'Google Sheets: Archivo → Descargar → Valores separados por comas (.csv).',
+        'error'
+      );
+      event.target.value = '';
+      return;
+    }
+
     try {
+      const preview = await file.text();
+      if (preview.includes('\uFFFD')) {
+        onToast(
+          'El archivo parece estar en otra codificación. Exporta nuevamente como "CSV UTF-8 (delimitado por comas)".\n' +
+            'Excel: Archivo → Guardar como → CSV UTF-8.\n' +
+            'Google Sheets: Archivo → Descargar → CSV (.csv).',
+          'error'
+        );
+        event.target.value = '';
+        return;
+      }
+
       setCsvUploading(true);
       const formData = new FormData();
       formData.append('file', file);
