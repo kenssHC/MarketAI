@@ -390,6 +390,7 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
   const [editingKeyword, setEditingKeyword] = useState(null);
   const [editSaving, setEditSaving] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
+  const [includeImagesSetting, setIncludeImagesSetting] = useState(true);
 
   const loadKeywords = async () => {
     try {
@@ -404,8 +405,29 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
     }
   };
 
+  const loadContentSettings = async ({ notifyOnError = false } = {}) => {
+    try {
+      const data = await fetchSettings();
+      const value =
+        data && data.includeImages !== undefined ? !!data.includeImages : true;
+      setIncludeImagesSetting(value);
+      return value;
+    } catch (error) {
+      console.error(error);
+      if (notifyOnError) {
+        onToast(
+          'No se pudo cargar la configuración. Se usará generación con imágenes por defecto.',
+          'warn'
+        );
+      }
+      setIncludeImagesSetting(true);
+      return true;
+    }
+  };
+
   useEffect(() => {
     loadKeywords();
+    loadContentSettings();
   }, [refreshKey]);
 
   async function handleManualSubmit(event) {
@@ -494,6 +516,10 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
       return;
     }
 
+    const shouldGenerateImages = await loadContentSettings({
+      notifyOnError: true
+    });
+
     let stopRequested = false;
     const total = pending.length;
 
@@ -548,7 +574,7 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
 
         await generateArticleFromKeyword(keywordItem.id, {
           projectName: keywordItem.project_name || projectName,
-          generateImage: true
+          generateImage: shouldGenerateImages
         });
 
         processed += 1;
@@ -557,7 +583,12 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
           stopRequested ? 'Deteniendo después de completar el artículo actual...' : ''
         );
 
-        onToast(`Articulo e imagen generados para "${keywordItem.keyword_principal}"`, 'success');
+        onToast(
+          shouldGenerateImages
+            ? `Articulo e imagen generados para "${keywordItem.keyword_principal}"`
+            : `Articulo generado para "${keywordItem.keyword_principal}"`,
+          'success'
+        );
 
         if (stopRequested) {
           break;
