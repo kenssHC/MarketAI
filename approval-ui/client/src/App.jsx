@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
+import Swal from 'sweetalert2';
 import {
   fetchKeywords,
   createKeywordManual,
@@ -437,12 +438,15 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
     const hasValidExtension = allowedExtensions.some((ext) => fileName.endsWith(ext));
 
     if (!hasValidExtension) {
-      onToast(
-        'El archivo no es CSV válido. Guarda tu documento como "CSV UTF-8 (delimitado por comas)" y vuelve a subirlo.\n' +
-          'Excel: Archivo → Guardar como → CSV UTF-8.\n' +
-          'Google Sheets: Archivo → Descargar → Valores separados por comas (.csv).',
-        'error'
-      );
+      Swal.fire({
+        icon: 'error',
+        title: 'Formato incorrecto',
+        html:
+          'Debes subir un CSV UTF-8 (delimitado por comas).<br/><br/>' +
+          '<strong>Excel:</strong> Archivo → Guardar como → CSV UTF-8 (delimitado por comas).<br/>' +
+          '<strong>Google Sheets:</strong> Archivo → Descargar → Valores separados por comas (.csv).',
+        confirmButtonText: 'Entendido'
+      });
       event.target.value = '';
       return;
     }
@@ -452,12 +456,15 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
       const decoder = new TextDecoder('utf-8', { fatal: true });
       decoder.decode(buffer);
     } catch (_decodeError) {
-      onToast(
-        'El archivo parece estar en otra codificación. Exporta nuevamente como "CSV UTF-8 (delimitado por comas)".\n' +
-          'Excel: Archivo → Guardar como → CSV UTF-8.\n' +
-          'Google Sheets: Archivo → Descargar → CSV (.csv).',
-        'error'
-      );
+      Swal.fire({
+        icon: 'error',
+        title: 'Codificación no soportada',
+        html:
+          'No pudimos leer el archivo como UTF-8.<br/><br/>' +
+          '<strong>Excel:</strong> Archivo → Guardar como → CSV UTF-8 (delimitado por comas).<br/>' +
+          '<strong>Google Sheets:</strong> Archivo → Descargar → CSV (.csv).',
+        confirmButtonText: 'Entendido'
+      });
       event.target.value = '';
       return;
     }
