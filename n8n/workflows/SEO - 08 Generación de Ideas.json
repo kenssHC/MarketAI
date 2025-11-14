@@ -15,7 +15,7 @@
         -608,
         112
       ],
-      "id": "a5234452-3051-41cf-8a11-9062b1090daa",
+      "id": "1114d6c8-6f1c-4905-a595-1e58604ec693",
       "webhookId": "04bd82ba-3b57-4f2f-977e-96827a59226c"
     },
     {
@@ -31,10 +31,10 @@
         -400,
         112
       ],
-      "id": "3a25b9e8-0f9c-4ca4-ab44-b1b33208f096",
+      "id": "70311bcd-ed82-4ace-9657-4ca84f0e8106",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -72,7 +72,7 @@
         -208,
         112
       ],
-      "id": "dc5af160-d0d3-4409-b907-106af0a66400"
+      "id": "cdc0e32d-8bc3-454f-b50e-60dbb8c1debc"
     },
     {
       "parameters": {
@@ -85,7 +85,7 @@
         0,
         0
       ],
-      "id": "817396c8-a8d2-493b-a51b-474ebfc28818"
+      "id": "750bdb4c-8e2b-413d-b016-34ebfab6f49f"
     },
     {
       "parameters": {
@@ -98,7 +98,7 @@
         208,
         0
       ],
-      "id": "b72aa7ab-de43-4400-b9ab-d344272286ba"
+      "id": "0626865a-67c2-4c92-9b89-cee4ab902029"
     },
     {
       "parameters": {
@@ -124,10 +124,10 @@
         400,
         0
       ],
-      "id": "a87c6b2b-5e2d-4136-9168-779996643d7f",
+      "id": "290b44b3-8f1c-4aef-872f-66cec9cdb858",
       "credentials": {
         "openAiApi": {
-          "id": "IDR18P8JJHeNClOr",
+          "id": "ZZhlUpBbl8y5n5sj",
           "name": "OpenAi account"
         }
       }
@@ -143,7 +143,7 @@
         608,
         0
       ],
-      "id": "eb28ac8d-4c25-47c7-aabd-850e5f73b7b5"
+      "id": "8e8594ef-0387-4729-8482-2708607f4e7e"
     },
     {
       "parameters": {
@@ -158,10 +158,10 @@
         800,
         0
       ],
-      "id": "648ab3f5-e3ff-4c9c-ac87-30696a8724d6",
+      "id": "9238a9f8-1caf-49b7-b17e-83c342593b09",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -179,7 +179,7 @@
         1008,
         0
       ],
-      "id": "90cea202-4be6-42e3-b5d1-204df35c1448"
+      "id": "86bd481a-4459-4cd7-b9eb-62c66df8d706"
     },
     {
       "parameters": {
@@ -192,7 +192,7 @@
         1200,
         0
       ],
-      "id": "9ac68840-2cc0-4541-a551-bd062fa3ffa0"
+      "id": "bd906bb9-3c09-4679-80c6-adcc6edfd44c"
     },
     {
       "parameters": {
@@ -207,7 +207,7 @@
         1408,
         0
       ],
-      "id": "1589c752-19dd-4387-b1d1-413bbd205dd4"
+      "id": "03d322bc-c7f4-445e-82d2-0e7a5cb74267"
     },
     {
       "parameters": {
@@ -220,7 +220,7 @@
         1600,
         0
       ],
-      "id": "666b6516-3a86-4105-9004-28465ad5cb9b"
+      "id": "d20ab72c-c4cc-4727-bfcb-3a26ff79c583"
     },
     {
       "parameters": {
@@ -235,7 +235,7 @@
         1808,
         0
       ],
-      "id": "a33c0587-8257-4ba4-9ca8-78f92d60d05a"
+      "id": "854365f0-32c1-4f79-ba06-8042aadd09b1"
     },
     {
       "parameters": {
@@ -248,7 +248,7 @@
         0,
         208
       ],
-      "id": "bfe24448-be7a-4f37-914a-91dbdead0ad8"
+      "id": "e8292db8-bfcc-4477-ad4a-40d12f81f693"
     },
     {
       "parameters": {
@@ -263,7 +263,7 @@
         208,
         208
       ],
-      "id": "e8d4697f-4b66-4083-8e44-d70778e5f798"
+      "id": "f6e28594-7f04-4117-a39e-3944fe8c64dd"
     }
   ],
   "pinData": {},
@@ -423,23 +423,24 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "6ac0e101-ffeb-46e7-a0a0-ba3d3d523569",
+  "versionId": "a6987d50-51cb-48c0-b05b-5d193a52c05c",
   "meta": {
-    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b0c0d75725deff7f1cd3c888712a4250b86d4d553af2f9bc1d9171d793e1efdc"
   },
-  "id": "PpAOklRPQjpWu4Yg",
+  "id": "hLg9KZRLgNRTBNDj",
   "tags": [
     {
-      "createdAt": "2025-10-16T23:45:00.633Z",
-      "updatedAt": "2025-10-16T23:45:00.633Z",
-      "id": "Jyvk52dJ2wNnSCbU",
-      "name": "SEO"
+      "updatedAt": "2025-11-11T05:59:09.545Z",
+      "createdAt": "2025-11-11T05:59:09.545Z",
+      "id": "GHgJpkQPdZhkoDT6",
+      "name": "Ideas"
     },
     {
-      "name": "Ideas",
-      "id": "TQh3Q9yoqwQC6p08",
-      "createdAt": "2025-10-20T23:05:25.256Z",
-      "updatedAt": "2025-10-20T23:05:25.256Z"
+      "updatedAt": "2025-11-11T04:17:52.069Z",
+      "createdAt": "2025-11-11T04:17:52.069Z",
+      "id": "CmhYBd1WY0kLj5vl",
+      "name": "SEO"
     }
   ]
 }

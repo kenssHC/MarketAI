@@ -80,3 +80,6 @@ postgres_data/
 *credentials*.json
 *secret*.json
 *apikey*.txt
+
+# Workflows
+n8n/workflows/

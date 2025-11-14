@@ -15,7 +15,7 @@
         -608,
         112
       ],
-      "id": "fea2927c-03f9-4bee-8ea5-8a1131a28535",
+      "id": "5f656ea3-1c18-4d1f-bd4f-9d35f3cb6867",
       "webhookId": "c4f1cb7e-31ff-4052-8c5a-3cd559d4f8b8"
     },
     {
@@ -31,10 +31,10 @@
         -400,
         112
       ],
-      "id": "bc1fa382-6d9f-4194-951f-bf2db855dbe7",
+      "id": "c7adbcee-8634-48dc-b5a3-40990943aff9",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -72,7 +72,7 @@
         -208,
         112
       ],
-      "id": "c91fd440-0215-473c-8350-48699c590584"
+      "id": "a4bdee34-3cef-43cc-9ee4-d900d520670a"
     },
     {
       "parameters": {
@@ -85,7 +85,7 @@
         0,
         0
       ],
-      "id": "ad66c967-3679-4b1b-8821-3152cda366bf"
+      "id": "7b9d06bb-3224-4d76-8845-b460b925b9bc"
     },
     {
       "parameters": {
@@ -98,7 +98,7 @@
         416,
         0
       ],
-      "id": "71d43dd0-9589-40b3-9b5e-c6187c290253"
+      "id": "b87b2d20-c1bf-4106-b695-7e86130ecebc"
     },
     {
       "parameters": {
@@ -113,10 +113,10 @@
         624,
         0
       ],
-      "id": "f4ce3cf7-19a9-4583-913b-787d88132bc9",
+      "id": "8ce6bf41-b3d1-49bd-8d80-17fa145e05a6",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -134,10 +134,10 @@
         832,
         0
       ],
-      "id": "fed846b9-8329-4418-b6d0-9030404b9386",
+      "id": "5a223079-1a6b-48d3-ba95-7ecfb3ec006a",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -153,7 +153,7 @@
         1040,
         0
       ],
-      "id": "4d1d60c7-017c-4651-8978-707ed86a652f"
+      "id": "94ccbac2-8916-4c5e-afee-6866cc46d7e3"
     },
     {
       "parameters": {
@@ -168,7 +168,7 @@
         1248,
         0
       ],
-      "id": "d56ab7c6-6a7c-46db-95dc-a37a3eb9a139"
+      "id": "ec3184c1-6713-495e-8d00-b8db4a1cc799"
     },
     {
       "parameters": {
@@ -181,7 +181,7 @@
         1456,
         0
       ],
-      "id": "547e1130-d120-4cd4-8b7f-20afff4e2282"
+      "id": "5abdb987-dcc1-48c0-8bc6-40ffe0e039e3"
     },
     {
       "parameters": {
@@ -196,7 +196,7 @@
         1664,
         0
       ],
-      "id": "68940b3f-1642-4e4a-ac46-76926bfb2314"
+      "id": "d8dfc3d1-7556-4243-8259-29b50b5c296f"
     },
     {
       "parameters": {
@@ -209,7 +209,7 @@
         0,
         208
       ],
-      "id": "136191d4-d81d-4957-9545-363e2d49ff10"
+      "id": "a8d3eb86-7133-4a28-aa41-607bd0d22d2e"
     },
     {
       "parameters": {
@@ -224,7 +224,7 @@
         208,
         208
       ],
-      "id": "7971addd-7dc5-4374-8548-e1cfd5f48989"
+      "id": "189f13ca-df0d-49d3-98d7-2827cc3a3df3"
     },
     {
       "parameters": {
@@ -239,7 +239,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Bearer OPENAI_API_KEY"
+              "value": "=sk..."
             }
           ]
         },
@@ -274,7 +274,7 @@
         208,
         0
       ],
-      "id": "ae96cce0-c684-4046-b7bb-271272fac103",
+      "id": "69187c29-141b-484d-8731-66feb24a63d2",
       "name": "HTTP Request"
     }
   ],
@@ -424,23 +424,24 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "4f095dd3-84a3-41f2-9989-f4d2fcb795fb",
+  "versionId": "557c33a4-a71b-4594-94f5-1d84362d91a0",
   "meta": {
-    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b0c0d75725deff7f1cd3c888712a4250b86d4d553af2f9bc1d9171d793e1efdc"
   },
-  "id": "jmHMDLchEIECGC0S",
+  "id": "20LcSrEEhzT2ekPb",
   "tags": [
     {
-      "createdAt": "2025-10-16T23:45:00.633Z",
-      "updatedAt": "2025-10-16T23:45:00.633Z",
-      "id": "Jyvk52dJ2wNnSCbU",
-      "name": "SEO"
+      "updatedAt": "2025-11-11T05:59:48.696Z",
+      "createdAt": "2025-11-11T05:59:48.696Z",
+      "id": "7bJm9belK627hVuf",
+      "name": "Investigacion"
     },
     {
-      "name": "Investigacion",
-      "id": "cxNxNF5IUaobNuPq",
-      "createdAt": "2025-10-22T01:35:31.385Z",
-      "updatedAt": "2025-10-22T01:35:31.385Z"
+      "updatedAt": "2025-11-11T04:17:52.069Z",
+      "createdAt": "2025-11-11T04:17:52.069Z",
+      "id": "CmhYBd1WY0kLj5vl",
+      "name": "SEO"
     }
   ]
 }

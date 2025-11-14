@@ -12,10 +12,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -640,
+        0,
         0
       ],
-      "id": "9655baa9-e24f-4000-b707-ceb623fbe875",
+      "id": "0d33279a-5353-4dcc-8811-5c2b1fd4d254",
       "webhookId": "b1319f1e-142a-4c0c-80f2-1d3d9833fbfe"
     },
     {
@@ -28,13 +28,13 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -360,
+        288,
         0
       ],
-      "id": "be67f1b4-4221-408b-a74b-0d9c3d44eba8",
+      "id": "243b5934-3a1c-4ae6-bbdb-1088220e555e",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -69,10 +69,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -120,
+        528,
         0
       ],
-      "id": "813c7de8-baed-42cd-834f-60b35ac4f1e0"
+      "id": "09db2b27-2355-4753-a13a-2cce98f0ba67"
     },
     {
       "parameters": {
@@ -82,10 +82,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        120,
+        768,
         0
       ],
-      "id": "8a322d30-5c6d-46b6-9b2a-74fa0da75712"
+      "id": "47d29ada-438d-4e90-94bb-a8c2d11e1285"
     },
     {
       "parameters": {
@@ -95,29 +95,28 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        360,
+        1008,
         0
       ],
-      "id": "6872c6c6-6dc3-49ab-861a-00f88084f085"
+      "id": "eb90738a-e389-4d4d-9895-47537c834395"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "=UPDATE drafts\nSET\n  qa_passed = $2,\n  qa_report = $3::jsonb,\n  qa_checked_at = $4::timestamp,\n  updated_at = NOW()\nWHERE id = $1::uuid\nRETURNING id, qa_passed, qa_checked_at\n",
-        "values": "={{ [ $json.draft_id, $json.qa_passed, $json.qa_report, $json.qa_checked_at ] }}",
         "options": {}
       },
       "name": "Actualizar Draft QA",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        600,
+        1248,
         0
       ],
-      "id": "5b08faaf-99f3-4b23-963a-e6938307a450",
+      "id": "429fe4ad-b17a-4b19-8184-fc3b9d1833de",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -130,10 +129,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        840,
+        1488,
         0
       ],
-      "id": "d9f8ef61-312b-4971-a38d-f00bb4498f0c"
+      "id": "353756c3-3ffd-439d-80ec-c55952e3647e"
     },
     {
       "parameters": {
@@ -143,29 +142,28 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1080,
+        1728,
         0
       ],
-      "id": "59f65caa-3c01-47af-8a00-5aee7525a16b"
+      "id": "10fbd1ff-893d-48f9-a07f-8812ba90524a"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "=INSERT INTO jobs_log (job_name, job_type, status, related_keyword_id, related_idea_id, related_draft_id, started_at, completed_at, duration_ms, input_data, output_data)\nVALUES ($1, $2, $3, $4, $5, $6, $7::timestamp, $8::timestamp, $9, $10::jsonb, $11::jsonb)\nRETURNING id, job_name, status, created_at\n",
-        "values": "={{ [ $json.job_log.job_name, $json.job_log.job_type, $json.job_log.status, $json.job_log.related_keyword_id, $json.job_log.related_idea_id, $json.job_log.related_draft_id, $json.job_log.started_at, $json.job_log.completed_at, $json.job_log.duration_ms, $json.job_log.input_data, $json.job_log.output_data ] }}",
         "options": {}
       },
       "name": "Insertar Job Log QA",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        1320,
+        1968,
         0
       ],
-      "id": "b57d22c0-c425-4f73-98c5-fbfb0b85d4b7",
+      "id": "efe59f76-2b2d-4077-b9bd-746b39dd0759",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -178,10 +176,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1560,
+        2208,
         0
       ],
-      "id": "b3479a8d-20c2-42db-b9d8-7c3d3baa313d"
+      "id": "b7954f33-f1a7-46a3-879c-e84404eb8332"
     },
     {
       "parameters": {
@@ -191,10 +189,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1800,
+        2448,
         0
       ],
-      "id": "3ed704a4-863d-4ce0-97c2-abce206316ec"
+      "id": "a62395c5-9cb9-4c8f-88b0-2f37fd5a08f2"
     },
     {
       "parameters": {
@@ -206,10 +204,10 @@
       "type": "n8n-nodes-base.aggregate",
       "typeVersion": 1,
       "position": [
-        2040,
+        2688,
         0
       ],
-      "id": "1df06f4b-25a7-406b-a5b6-ee7d3ad8184d"
+      "id": "55f79e9d-ea76-4ec1-9951-79c0ca7824f5"
     },
     {
       "parameters": {
@@ -219,24 +217,25 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2280,
+        2928,
         0
       ],
-      "id": "90d8cd87-80a5-4970-9f6a-b458ca17f170"
+      "id": "7120685e-cf8d-4e54-bb68-447a833d81e0"
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}"
+        "responseBody": "={{ $json }}",
+        "options": {}
       },
       "name": "Responder Webhook QA",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        2520,
+        3168,
         0
       ],
-      "id": "47b776ce-06cc-4f6a-a6be-c2e064b7f092"
+      "id": "23ef2ba8-22f5-427d-9290-37d0189b8a7a"
     },
     {
       "parameters": {
@@ -246,26 +245,28 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        120,
-        -200
+        752,
+        192
       ],
-      "id": "05fe24a4-47aa-45d5-bd7b-abfca30e884d"
+      "id": "ecbdbcc6-e7b9-4da7-990b-b4ea0fd2bd4c"
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}"
+        "responseBody": "={{ $json }}",
+        "options": {}
       },
       "name": "Responder Sin Drafts",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        360,
-        -200
+        992,
+        192
       ],
-      "id": "75104d7c-a006-401c-ab15-a40a90dfa859"
+      "id": "b4acbcfe-a29c-4442-873b-b5752b4e10ef"
     }
   ],
+  "pinData": {},
   "connections": {
     "Webhook": {
       "main": [
@@ -433,23 +434,24 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "7921a74f-50ce-4dc2-92a5-f9c9bce89b6c",
+  "versionId": "64bd86eb-b4b4-4d84-8eab-2e0e2a17e6d7",
   "meta": {
-    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b0c0d75725deff7f1cd3c888712a4250b86d4d553af2f9bc1d9171d793e1efdc"
   },
-  "id": "1cf89841-2863-44fb-b0fe-c9ba563234b0",
+  "id": "rXyYv1Zt691A3y8M",
   "tags": [
     {
-      "createdAt": "2025-10-16T23:45:00.633Z",
-      "updatedAt": "2025-10-16T23:45:00.633Z",
-      "id": "Jyvk52dJ2wNnSCbU",
-      "name": "SEO"
+      "updatedAt": "2025-11-11T06:00:49.787Z",
+      "createdAt": "2025-11-11T06:00:49.787Z",
+      "id": "yz5XTVePgusxi41I",
+      "name": "QA"
     },
     {
-      "createdAt": "2025-10-22T21:45:00Z",
-      "updatedAt": "2025-10-22T21:45:00Z",
-      "id": "25d6533a-0617-43e8-8685-c4de2a9cb8e6",
-      "name": "QA"
+      "updatedAt": "2025-11-11T04:17:52.069Z",
+      "createdAt": "2025-11-11T04:17:52.069Z",
+      "id": "CmhYBd1WY0kLj5vl",
+      "name": "SEO"
     }
   ]
 }

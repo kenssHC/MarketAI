@@ -15,7 +15,7 @@
         0,
         0
       ],
-      "id": "07cd75ae-ed7a-4c14-a793-60493bd91aa5",
+      "id": "de93ed27-5a75-487b-91c0-75af0c7a0151",
       "webhookId": "636582e4-2771-4688-8bc8-3b0e47cb3952"
     },
     {
@@ -37,7 +37,7 @@
         208,
         0
       ],
-      "id": "9d0259bb-b6d3-4533-833b-e60774258491"
+      "id": "3be6c959-517c-4f04-8601-3cc01ad6d503"
     },
     {
       "parameters": {
@@ -55,10 +55,10 @@
         400,
         0
       ],
-      "id": "e24816dd-f46f-40d5-973a-8c25133dca88",
+      "id": "d4b0eae4-d716-4813-9624-188af6b6da44",
       "credentials": {
         "openAiApi": {
-          "id": "IDR18P8JJHeNClOr",
+          "id": "ZZhlUpBbl8y5n5sj",
           "name": "OpenAi account"
         }
       }
@@ -82,7 +82,7 @@
         608,
         0
       ],
-      "id": "38daa7b1-c30f-4b85-b4a3-5af8284ba2c6"
+      "id": "8d32400b-f581-4021-bf40-819d62ffdc07"
     },
     {
       "parameters": {
@@ -97,7 +97,7 @@
         800,
         0
       ],
-      "id": "cf9a7b4a-b73f-42d9-85a8-703d0cf005a8"
+      "id": "998b5b3c-1342-4d97-9386-e74596c930bd"
     }
   ],
   "pinData": {},
@@ -151,17 +151,17 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "8e70812a-ae90-41a8-bb72-6898c27d3a2a",
+  "versionId": "88284176-aee3-455d-a7ff-7191354e48f9",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+    "instanceId": "b0c0d75725deff7f1cd3c888712a4250b86d4d553af2f9bc1d9171d793e1efdc"
   },
-  "id": "J7M4mncebAQNZbyY",
+  "id": "8qzIKcRcfNmi8CIC",
   "tags": [
     {
-      "createdAt": "2025-10-16T23:45:00.633Z",
-      "updatedAt": "2025-10-16T23:45:00.633Z",
-      "id": "Jyvk52dJ2wNnSCbU",
+      "updatedAt": "2025-11-11T04:17:52.069Z",
+      "createdAt": "2025-11-11T04:17:52.069Z",
+      "id": "CmhYBd1WY0kLj5vl",
       "name": "SEO"
     }
   ]

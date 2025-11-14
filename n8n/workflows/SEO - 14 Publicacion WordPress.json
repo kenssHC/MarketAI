@@ -15,7 +15,7 @@
         -624,
         112
       ],
-      "id": "425926fe-b3ee-46b4-be90-54e3707e81f1",
+      "id": "cbe05eee-a6bc-4877-942d-2e99f9b9dc41",
       "webhookId": "publicar-wordpress-001"
     },
     {
@@ -31,10 +31,10 @@
         -416,
         112
       ],
-      "id": "ff776012-91a4-428f-aa35-ce5b9eed93dc",
+      "id": "ae0f15f4-5a64-4d76-b68b-5a4ee16af30c",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -69,7 +69,7 @@
         -208,
         112
       ],
-      "id": "78c6f97a-e8d7-4621-9475-84fe7323ad1b"
+      "id": "7cc9afb6-e061-4855-82cd-5985edaea428"
     },
     {
       "parameters": {
@@ -82,7 +82,7 @@
         0,
         0
       ],
-      "id": "5ec91883-f418-4668-8bb2-08742656e0a0"
+      "id": "6bc61402-d700-4285-8cff-4588a672458f"
     },
     {
       "parameters": {
@@ -95,7 +95,7 @@
         208,
         0
       ],
-      "id": "49b8ce22-e4f5-4f61-90fe-6b6cc4e28d53"
+      "id": "db3694aa-0da5-450b-95bd-5ea82fad8174"
     },
     {
       "parameters": {
@@ -106,7 +106,7 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "=Basic RExBUkE3Nzk2OmlRbHFLU3U2SURHRmdNa1RSNjltc29wOA=="
+              "value": "=Basic RE..."
             },
             {
               "name": "Content-Type",
@@ -126,7 +126,7 @@
         416,
         0
       ],
-      "id": "58b0502b-e449-4a0f-b97c-9f029ce7b493"
+      "id": "4c6322db-7307-444f-8fe2-60c4ab0eeea4"
     },
     {
       "parameters": {
@@ -139,7 +139,7 @@
         624,
         0
       ],
-      "id": "be9de592-1224-44c5-b4fb-5aabaaf38bf7"
+      "id": "8a974791-0b06-4760-bd77-b6a2d9be5e23"
     },
     {
       "parameters": {
@@ -154,10 +154,10 @@
         832,
         0
       ],
-      "id": "30a5a727-3706-4f9d-bf30-dee362019e7b",
+      "id": "e408fddf-edcc-4a23-a5fe-929f94729931",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -175,10 +175,10 @@
         1040,
         0
       ],
-      "id": "4429e487-69b6-47dc-9eaf-3a20c6ee6009",
+      "id": "6cdc89a5-a1c4-4f66-9b37-2e6ee7fe2907",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -194,7 +194,7 @@
         1248,
         0
       ],
-      "id": "b97c5a7c-5b79-4ade-bccf-4b1ac6e850fa"
+      "id": "aea8ac26-03d7-4479-a333-012e06660de7"
     },
     {
       "parameters": {
@@ -209,10 +209,10 @@
         1456,
         0
       ],
-      "id": "2afcf848-d9f8-4aaf-b81f-022d91975a58",
+      "id": "cff6e1c1-10eb-470f-adb9-65e56ab604ec",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -228,7 +228,7 @@
         1664,
         0
       ],
-      "id": "a606229a-cdeb-40b0-bc95-1e3700873e89"
+      "id": "0c19e70f-18bd-4782-83a0-0789df696e5c"
     },
     {
       "parameters": {
@@ -243,7 +243,7 @@
         1872,
         0
       ],
-      "id": "8091a320-fb6a-4724-857c-09b5f8f47e43"
+      "id": "3bb27601-ec49-46b8-8aec-23b8eb013ea1"
     },
     {
       "parameters": {
@@ -256,7 +256,7 @@
         0,
         224
       ],
-      "id": "ed292687-d22a-4994-9f03-e5d026c11e15"
+      "id": "b1366931-46b8-4c0b-8f07-c2ec31e61493"
     },
     {
       "parameters": {
@@ -273,7 +273,7 @@
         208,
         224
       ],
-      "id": "8823e29b-d09d-4e12-a33f-7616e4add5a1"
+      "id": "2c6e072b-33cf-41fb-a99e-f75076797ed5"
     }
   ],
   "pinData": {},
@@ -433,10 +433,11 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "069b2702-8d9d-4ae4-b4ed-b0898be2e679",
+  "versionId": "e68d00a8-305b-4aea-984a-0c5025f9cdf7",
   "meta": {
-    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b0c0d75725deff7f1cd3c888712a4250b86d4d553af2f9bc1d9171d793e1efdc"
   },
-  "id": "510ecf5irxDFb329",
+  "id": "jdtyZccczpnJIIbK",
   "tags": []
 }

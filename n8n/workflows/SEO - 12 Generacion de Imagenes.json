@@ -51,10 +51,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -1120,
-        288
+        -480,
+        256
       ],
-      "id": "bef8b171-ceed-4ff9-bd3e-0441fffb6308"
+      "id": "6f3dd61f-c58d-438b-a43e-f6b60c2900df"
     },
     {
       "parameters": {
@@ -64,10 +64,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -640,
-        32
+        0,
+        0
       ],
-      "id": "5e6ef68d-7a04-438c-9e5f-310c9b26b40f"
+      "id": "0960236b-9e0f-4d8a-9eb3-869ac0474500"
     },
     {
       "parameters": {
@@ -119,10 +119,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -32,
-        288
+        608,
+        256
       ],
-      "id": "55c96f9f-ae44-490b-98c4-d0c7c55c79d3"
+      "id": "082130f6-028a-46c5-b323-b78045ea2571"
     },
     {
       "parameters": {
@@ -132,10 +132,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        496,
-        576
+        1136,
+        544
       ],
-      "id": "b0980345-7fba-4cb4-ba84-b1291d3975f8"
+      "id": "deb51689-b1cb-4a70-a5ba-2f504fe7a92f"
     },
     {
       "parameters": {
@@ -148,10 +148,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -2032,
-        288
+        -1392,
+        256
       ],
-      "id": "b399bad0-8941-440d-815a-18efb55802b5",
+      "id": "f82d0b51-7f1f-429a-b093-0ccbc8b26983",
       "webhookId": "376bc55b-08c8-4d2c-98e8-fdccf2fd9a06"
     },
     {
@@ -164,13 +164,13 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -1664,
-        288
+        -1024,
+        256
       ],
-      "id": "f00d6fca-b88d-4625-ab04-631cd94e5979",
+      "id": "6feda99e-671e-4bdb-bf19-430d83c45bad",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -205,10 +205,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -1488,
-        288
+        -848,
+        256
       ],
-      "id": "8a8e075c-0af6-41e6-9fb8-ad8c3d6ed0a2"
+      "id": "dcb3bc62-1c67-4f4a-90d7-f44373c9765f"
     },
     {
       "parameters": {
@@ -218,10 +218,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1280,
-        288
+        -640,
+        256
       ],
-      "id": "505face8-94d0-43c3-9ef4-952afbf4c92d"
+      "id": "09d5c566-e1f9-42c3-9591-29606e87561a"
     },
     {
       "parameters": {
@@ -236,7 +236,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Bearer OPENAI_API_KEY"
+              "value": "=Bearer..."
             }
           ]
         },
@@ -265,10 +265,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -896,
-        288
+        -256,
+        256
       ],
-      "id": "2bf85edd-5f18-4ef3-859b-e94cf020123a"
+      "id": "d68f100e-3e1e-4d13-a6ce-01ea9e114ef9"
     },
     {
       "parameters": {
@@ -278,10 +278,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -704,
-        288
+        -64,
+        256
       ],
-      "id": "8c824069-3a57-4cf6-b7f5-29c0c9068d6c"
+      "id": "e5d37526-d087-4dac-bdfa-19a96b46b889"
     },
     {
       "parameters": {
@@ -292,10 +292,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -304,
-        288
+        336,
+        256
       ],
-      "id": "47610f1c-109c-4bd3-8d26-62d29c6506f4"
+      "id": "a57fdc8d-94ed-4fe9-9d62-1ae4b18b967f"
     },
     {
       "parameters": {
@@ -309,13 +309,13 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        560,
-        272
+        1200,
+        240
       ],
-      "id": "a1091aa8-22da-4886-b35b-fd293e34a0b9",
+      "id": "c2e49ec3-6145-4d2f-9c3b-7e7d026c0241",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -328,10 +328,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        752,
-        272
+        1392,
+        240
       ],
-      "id": "ef1eab89-6191-47e9-8fc4-a86fb0f918f6"
+      "id": "8d45aa15-f464-4a1f-aef4-c4eb75da605a"
     },
     {
       "parameters": {
@@ -341,10 +341,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        976,
-        272
+        1616,
+        240
       ],
-      "id": "86a8b47f-dad9-477b-8ee8-d7b76c2153c4"
+      "id": "3157fbea-f0d4-4202-90dc-7559a3a2a671"
     },
     {
       "parameters": {
@@ -358,13 +358,13 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        1152,
-        272
+        1792,
+        240
       ],
-      "id": "e9736fe5-c0d6-441b-831e-bf5aeb5378a5",
+      "id": "46155526-6c57-46f4-a30a-a35386053469",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -377,10 +377,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1344,
-        272
+        1984,
+        240
       ],
-      "id": "e28ebafb-664a-4d83-a5d8-bb013bd04042"
+      "id": "601769d6-346d-4756-8802-b9bc408e5396"
     },
     {
       "parameters": {
@@ -392,10 +392,10 @@
       "type": "n8n-nodes-base.aggregate",
       "typeVersion": 1,
       "position": [
-        1552,
-        272
+        2192,
+        240
       ],
-      "id": "fa6a6792-b82f-4c49-b9a2-8a6f8c3984fc"
+      "id": "2f579c26-0bae-484f-bcf5-44935e1678be"
     },
     {
       "parameters": {
@@ -405,10 +405,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1744,
-        272
+        2384,
+        240
       ],
-      "id": "0b175228-07cd-4528-934e-6cec84054d31"
+      "id": "c3beff74-4ddf-4daa-bb4f-99e672f9d590"
     },
     {
       "parameters": {
@@ -420,10 +420,10 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1936,
-        272
+        2576,
+        240
       ],
-      "id": "5fae7793-af85-413d-90a3-2a285e32e376"
+      "id": "76a269c1-a122-4114-932f-7d4cb17c37dd"
     },
     {
       "parameters": {
@@ -433,10 +433,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1072,
-        496
+        -432,
+        464
       ],
-      "id": "4a71bd54-e764-46a8-9b61-bb1f34f77ba8"
+      "id": "ed2ee971-9521-4398-96ed-39ab61cd19d8"
     },
     {
       "parameters": {
@@ -448,10 +448,10 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        -864,
-        496
+        -224,
+        464
       ],
-      "id": "33a19640-7ace-4934-a9b7-3000b076a0e0"
+      "id": "58a8f926-973a-44c2-bf16-a9e989355cb7"
     },
     {
       "parameters": {
@@ -470,7 +470,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Basic WORDPRESS_AUTH_HEADER"
+              "value": "=Basic..."
             }
           ]
         },
@@ -485,10 +485,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        192,
-        272
+        832,
+        240
       ],
-      "id": "38b3763b-5401-4c8e-8429-660c9f366f63"
+      "id": "89fd097e-4772-4498-88af-7ad60fbe7970"
     },
     {
       "parameters": {
@@ -498,10 +498,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        368,
-        272
+        1008,
+        240
       ],
-      "id": "5f939998-6bb4-4070-9dd2-408c94a85b23"
+      "id": "9c9f3ee5-7a82-4013-86f9-d8db633aaa5b"
     },
     {
       "parameters": {
@@ -510,10 +510,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1840,
-        288
+        -1200,
+        256
       ],
-      "id": "cc077155-a392-48db-9a45-b2c65cc81b38",
+      "id": "48d1142b-df8e-4a35-871d-7c2e581ac682",
       "name": "Code in JavaScript1"
     },
     {
@@ -531,14 +531,14 @@
       "type": "@n8n/n8n-nodes-langchain.googleGemini",
       "typeVersion": 1,
       "position": [
-        -496,
-        288
+        144,
+        256
       ],
-      "id": "0989966f-7178-48f1-9d87-7432c7b740af",
+      "id": "9c8e127a-33b3-49ad-8498-c395d4c2a5f0",
       "name": "Generate an image",
       "credentials": {
         "googlePalmApi": {
-          "id": "g6CznvlPaIgiW1A3",
+          "id": "ToAVIZq9NjXB3ceO",
           "name": "Google Gemini(PaLM) Api account"
         }
       }
@@ -825,24 +825,24 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "2c86e894-5544-4849-9acf-14b0125d9f1b",
+  "versionId": "50d79867-6264-4d6a-ab94-a1e206e339e8",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+    "instanceId": "b0c0d75725deff7f1cd3c888712a4250b86d4d553af2f9bc1d9171d793e1efdc"
   },
-  "id": "txLXeqHKaGysxjgG",
+  "id": "Hj5lVOCYPNnv3I9w",
   "tags": [
     {
-      "createdAt": "2025-10-16T23:45:00.633Z",
-      "updatedAt": "2025-10-16T23:45:00.633Z",
-      "id": "Jyvk52dJ2wNnSCbU",
-      "name": "SEO"
+      "updatedAt": "2025-11-11T06:00:18.669Z",
+      "createdAt": "2025-11-11T06:00:18.669Z",
+      "id": "ZS68MiCDpr8zZY1I",
+      "name": "Imagenes"
     },
     {
-      "createdAt": "2025-10-22T10:41:16.380Z",
-      "updatedAt": "2025-10-22T10:41:16.380Z",
-      "id": "ua4KwtDVOoDZplyL",
-      "name": "Imagenes"
+      "updatedAt": "2025-11-11T04:17:52.069Z",
+      "createdAt": "2025-11-11T04:17:52.069Z",
+      "id": "CmhYBd1WY0kLj5vl",
+      "name": "SEO"
     }
   ]
 }

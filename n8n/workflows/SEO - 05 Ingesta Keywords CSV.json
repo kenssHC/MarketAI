@@ -15,7 +15,7 @@
         0,
         0
       ],
-      "id": "c9475af5-4e4e-4018-9a71-7391f312b0f4",
+      "id": "ac4435f3-b26c-4010-85b8-37d9b9fdf152",
       "webhookId": "98c7adfc-2c4d-45ee-af09-5bb5fc5bac46"
     },
     {
@@ -29,7 +29,7 @@
         192,
         0
       ],
-      "id": "acb13f86-7558-4726-b0ce-c560d85af74d"
+      "id": "8891beb7-b5cd-443c-b8a7-6c144de5be60"
     },
     {
       "parameters": {
@@ -44,10 +44,10 @@
         400,
         0
       ],
-      "id": "a7ee793c-643f-4ef2-a37d-0a5890ad4ee0",
+      "id": "6b3efd90-2282-4a99-bf07-b1e260136568",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -65,7 +65,7 @@
         624,
         0
       ],
-      "id": "c872a98d-056e-4afd-9af8-f15b4f5d1e02"
+      "id": "a28e8a2e-bf6f-42fa-8b67-a51749069450"
     },
     {
       "parameters": {
@@ -78,7 +78,7 @@
         848,
         0
       ],
-      "id": "11a21aa5-c7b8-464e-8c28-221e9738ff07"
+      "id": "a4efa1eb-1999-441c-8f34-e02ba6ea5383"
     },
     {
       "parameters": {
@@ -93,7 +93,7 @@
         1072,
         0
       ],
-      "id": "fa150aea-0992-4ab4-a8db-01b8a4ff2109"
+      "id": "62d89f74-9212-4332-b99a-e560a422bb7e"
     }
   ],
   "pinData": {},
@@ -158,24 +158,24 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "d46d620f-cfee-48c3-94d0-56b6216a45ca",
+  "versionId": "aa6b3282-a68d-4f7f-9310-e92a8d59d629",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+    "instanceId": "b0c0d75725deff7f1cd3c888712a4250b86d4d553af2f9bc1d9171d793e1efdc"
   },
-  "id": "rY3JY6aO9OcM9hCa",
+  "id": "yNT5uyw3Hz8jCcYu",
   "tags": [
     {
-      "createdAt": "2025-10-16T23:45:00.633Z",
-      "updatedAt": "2025-10-16T23:45:00.633Z",
-      "id": "Jyvk52dJ2wNnSCbU",
-      "name": "SEO"
+      "updatedAt": "2025-11-11T05:58:30.038Z",
+      "createdAt": "2025-11-11T05:58:30.038Z",
+      "id": "QKWNtnKf2nT3fnJC",
+      "name": "Ingesta"
     },
     {
-      "createdAt": "2025-10-17T20:03:03.929Z",
-      "updatedAt": "2025-10-17T20:03:03.929Z",
-      "id": "H2Af7KIePlyZ9uu5",
-      "name": "Ingesta"
+      "updatedAt": "2025-11-11T04:17:52.069Z",
+      "createdAt": "2025-11-11T04:17:52.069Z",
+      "id": "CmhYBd1WY0kLj5vl",
+      "name": "SEO"
     }
   ]
 }

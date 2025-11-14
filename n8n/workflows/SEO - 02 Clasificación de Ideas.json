@@ -12,10 +12,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        432,
-        -128
+        0,
+        0
       ],
-      "id": "db7a1791-2e44-436f-a5c8-d802a9269c0f",
+      "id": "d92be3ea-06b2-4b40-acb9-2b9d61c2f765",
       "webhookId": "15a8b900-1160-41eb-92f3-0a33edc75193"
     },
     {
@@ -34,10 +34,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 1,
       "position": [
-        640,
-        -128
+        208,
+        0
       ],
-      "id": "19629b15-b085-414d-a96c-df6d905334ad"
+      "id": "acf69762-eb14-4f03-985e-fe5a52ece4c4"
     },
     {
       "parameters": {
@@ -52,13 +52,13 @@
       "type": "n8n-nodes-base.openAi",
       "typeVersion": 1,
       "position": [
-        832,
-        -128
+        400,
+        0
       ],
-      "id": "f93e854c-c862-4809-8575-410a50ef525a",
+      "id": "6701659d-61a0-49e0-93a2-c83ac3abc107",
       "credentials": {
         "openAiApi": {
-          "id": "IDR18P8JJHeNClOr",
+          "id": "ZZhlUpBbl8y5n5sj",
           "name": "OpenAi account"
         }
       }
@@ -79,10 +79,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 1,
       "position": [
-        1040,
-        -128
+        608,
+        0
       ],
-      "id": "1b7ddbc1-f6e1-4f78-9f3e-890969416ef1"
+      "id": "53a1c927-1b0a-4758-98bf-85d65cb4195a"
     },
     {
       "parameters": {
@@ -94,10 +94,10 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1232,
-        -128
+        800,
+        0
       ],
-      "id": "f78d7930-b7ce-4e0f-9321-bb8358ce9f1c"
+      "id": "a20e30af-7b15-4787-afed-d323d84b96bf"
     }
   ],
   "pinData": {},
@@ -151,17 +151,17 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "7cd53f3d-e8c9-4918-9773-9a3e9b526b90",
+  "versionId": "1b35d1c2-fc62-45ac-81cc-aef545a79844",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+    "instanceId": "b0c0d75725deff7f1cd3c888712a4250b86d4d553af2f9bc1d9171d793e1efdc"
   },
-  "id": "vcs6yceydyaJmQUu",
+  "id": "IvSfSKxeqFNYTEQq",
   "tags": [
     {
-      "createdAt": "2025-10-16T23:45:00.633Z",
-      "updatedAt": "2025-10-16T23:45:00.633Z",
-      "id": "Jyvk52dJ2wNnSCbU",
+      "updatedAt": "2025-11-11T04:17:52.069Z",
+      "createdAt": "2025-11-11T04:17:52.069Z",
+      "id": "CmhYBd1WY0kLj5vl",
       "name": "SEO"
     }
   ]

@@ -15,7 +15,7 @@
         -608,
         112
       ],
-      "id": "b5db78d2-384f-4747-bdf7-fd52da50626f",
+      "id": "47532ea3-4c6c-43e5-a2be-4c8a8f911440",
       "webhookId": "f5afe3fe-8588-42a2-a20b-980ee1a1f65f"
     },
     {
@@ -31,10 +31,10 @@
         -400,
         112
       ],
-      "id": "1b761806-094d-417e-a7ee-2c1c4497331d",
+      "id": "8527d1a9-8eaa-42a5-b788-570ab3e6b1bd",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -72,7 +72,7 @@
         -208,
         112
       ],
-      "id": "de969ff3-9523-4c9b-b3c7-c9fdc0b0eab0"
+      "id": "61cc1233-fa05-4f6e-b924-497e63032709"
     },
     {
       "parameters": {
@@ -85,7 +85,7 @@
         0,
         0
       ],
-      "id": "d4434948-cef7-46a7-897e-c6b6064d71ea"
+      "id": "b463d5be-a365-47bb-b7cb-39bb85542f8f"
     },
     {
       "parameters": {
@@ -98,7 +98,7 @@
         208,
         0
       ],
-      "id": "d97cd011-89ea-49d5-833c-d9cda7d30a42"
+      "id": "d9337d90-d816-4aae-ad85-2ad3c401444d"
     },
     {
       "parameters": {
@@ -116,10 +116,10 @@
         400,
         0
       ],
-      "id": "2e20c472-016e-4877-ab04-0cc51614175b",
+      "id": "3b3bc8f3-940d-4b38-879b-302a5fe8e858",
       "credentials": {
         "openAiApi": {
-          "id": "IDR18P8JJHeNClOr",
+          "id": "ZZhlUpBbl8y5n5sj",
           "name": "OpenAi account"
         }
       }
@@ -135,7 +135,7 @@
         608,
         0
       ],
-      "id": "9cc17c74-ce54-432e-853a-0bbf99e5d4ac"
+      "id": "c90ce8ae-0259-45d6-beb1-ef955b7324f8"
     },
     {
       "parameters": {
@@ -148,7 +148,7 @@
         800,
         0
       ],
-      "id": "cb509c2e-a76f-4ae2-b564-c89a8213d023"
+      "id": "f948912d-2b58-4e5f-916a-479e7c133e1e"
     },
     {
       "parameters": {
@@ -163,10 +163,10 @@
         1008,
         0
       ],
-      "id": "5ab84d8d-f0c2-4a96-99c4-12b45d106244",
+      "id": "1547ec19-fa47-4f7f-b14d-a651dbe99efa",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -184,10 +184,10 @@
         1200,
         0
       ],
-      "id": "348993f4-101d-4039-bddf-5e6d5a96b220",
+      "id": "65c74f6e-8c59-4a9f-b877-b8c638edac2e",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -203,7 +203,7 @@
         1408,
         0
       ],
-      "id": "44e5b3b4-0c69-4a2b-a40c-f8c7b77fa816"
+      "id": "4ed49112-459e-4ae4-91d4-e18d625d43f0"
     },
     {
       "parameters": {
@@ -216,7 +216,7 @@
         1600,
         0
       ],
-      "id": "bb67c4fa-7f7b-4043-9504-381dfb4ba9ca"
+      "id": "c4b0c5d0-a088-4b96-bfc2-4eb574f73e9b"
     },
     {
       "parameters": {
@@ -231,7 +231,7 @@
         1808,
         0
       ],
-      "id": "4c112688-aaf3-4afc-8e04-e3da0e9b1d11"
+      "id": "195e1c31-67b1-4f38-86bf-656a91954f6f"
     },
     {
       "parameters": {
@@ -244,7 +244,7 @@
         0,
         208
       ],
-      "id": "009193d4-1c08-4ba4-8530-04ca28b35d42"
+      "id": "67e93397-f6b1-4172-b1ca-f8811fda7cdb"
     },
     {
       "parameters": {
@@ -259,7 +259,7 @@
         208,
         208
       ],
-      "id": "8b63c79b-9705-4d5e-860a-983dd1f64f46"
+      "id": "2a1aed49-2f4c-4993-85c1-daa7ae057d41"
     }
   ],
   "pinData": {},
@@ -419,22 +419,23 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "db5056b8-099a-49bb-a18e-ab6a812e5366",
+  "versionId": "3ec52404-63e7-4708-a2f9-4ac443085d09",
   "meta": {
-    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b0c0d75725deff7f1cd3c888712a4250b86d4d553af2f9bc1d9171d793e1efdc"
   },
-  "id": "FjUkPoOGMBpYzf9e",
+  "id": "RblVWtdd5w2rgZNb",
   "tags": [
     {
-      "name": "Clustering",
-      "id": "30cdkbUwPEw3Smea",
-      "createdAt": "2025-10-20T20:22:11.088Z",
-      "updatedAt": "2025-10-20T20:22:11.088Z"
+      "updatedAt": "2025-11-11T05:58:54.682Z",
+      "createdAt": "2025-11-11T05:58:54.682Z",
+      "id": "Vl0AyN4iKifiEEti",
+      "name": "Clustering"
     },
     {
-      "createdAt": "2025-10-16T23:45:00.633Z",
-      "updatedAt": "2025-10-16T23:45:00.633Z",
-      "id": "Jyvk52dJ2wNnSCbU",
+      "updatedAt": "2025-11-11T04:17:52.069Z",
+      "createdAt": "2025-11-11T04:17:52.069Z",
+      "id": "CmhYBd1WY0kLj5vl",
       "name": "SEO"
     }
   ]

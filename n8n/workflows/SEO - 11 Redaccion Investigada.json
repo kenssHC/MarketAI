@@ -15,7 +15,7 @@
         -608,
         112
       ],
-      "id": "60a474f2-0d5e-4082-8d3d-6465ffb7b14e",
+      "id": "2da4cdf7-9235-4239-ad84-8e243fb4515f",
       "webhookId": "b2b4f491-9a58-40c0-b0d0-72da996854ff"
     },
     {
@@ -31,10 +31,10 @@
         -400,
         112
       ],
-      "id": "7af2d1fd-dc26-4449-b710-5a7c61cfdc50",
+      "id": "6f105c36-b4fa-426b-8e4b-3738c5f45064",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -72,7 +72,7 @@
         -208,
         112
       ],
-      "id": "55eed8df-56f8-4363-b4a4-ad775f396276"
+      "id": "cd882f5d-25d1-432a-aafd-b9eeba52754b"
     },
     {
       "parameters": {
@@ -85,7 +85,7 @@
         0,
         0
       ],
-      "id": "abea3704-7af2-4798-9823-a71c13e8f97d"
+      "id": "d2812d85-2d3c-4565-8042-3c9e967f0d5c"
     },
     {
       "parameters": {
@@ -98,7 +98,7 @@
         208,
         0
       ],
-      "id": "b3e34865-811b-41e2-ba11-332deee59779"
+      "id": "b7cbbde7-9bd0-4478-9e9b-a07977a5df19"
     },
     {
       "parameters": {
@@ -116,10 +116,10 @@
         416,
         0
       ],
-      "id": "fa6daa92-4a3b-4605-8035-c7db39bc66f8",
+      "id": "334e7f53-a13d-419f-b7f9-c7b3b1526fba",
       "credentials": {
         "openAiApi": {
-          "id": "IDR18P8JJHeNClOr",
+          "id": "ZZhlUpBbl8y5n5sj",
           "name": "OpenAi account"
         }
       }
@@ -135,7 +135,7 @@
         624,
         0
       ],
-      "id": "2c9c2143-9cd2-41f0-98dd-2358c74b8aa5"
+      "id": "95b95326-28dc-46a5-92c7-077a12647f33"
     },
     {
       "parameters": {
@@ -148,7 +148,7 @@
         832,
         0
       ],
-      "id": "772f70a5-84f0-468e-9e15-2f9ee7e33bd7"
+      "id": "a4a25f1a-6d37-412f-bdd1-129f98b19969"
     },
     {
       "parameters": {
@@ -161,7 +161,7 @@
         1040,
         0
       ],
-      "id": "f8b1c5e3-04bd-42f1-8e87-398740cc8aa3"
+      "id": "c6b81574-adae-457b-9142-1d0521fb21ab"
     },
     {
       "parameters": {
@@ -178,10 +178,10 @@
         1312,
         0
       ],
-      "id": "7083fbbc-e7cd-4004-82fc-1ab9cc3282fb",
+      "id": "27e430ef-3aaf-4f38-bcf9-72d28a9ed69c",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -199,10 +199,10 @@
         1504,
         0
       ],
-      "id": "f9719224-fde8-4163-89f5-48eb9d84bc19",
+      "id": "005198c6-d71b-40c6-b9b7-28bf0a8e7b77",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -218,7 +218,7 @@
         1696,
         0
       ],
-      "id": "41c821ec-7ceb-4214-af01-2bb2b15a261c"
+      "id": "42c50eea-9a08-4c34-8441-1c2a845e717f"
     },
     {
       "parameters": {
@@ -235,10 +235,10 @@
         1888,
         0
       ],
-      "id": "154a7394-dd46-4649-9faa-d34f0e31df60",
+      "id": "fd45aadf-96c2-433f-86af-700f19f8209b",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -254,7 +254,7 @@
         2080,
         0
       ],
-      "id": "68bd79fb-bcf9-49f1-a4c7-945f18749241"
+      "id": "c5a13315-7705-42d0-b6e7-4b1429d10355"
     },
     {
       "parameters": {
@@ -269,7 +269,7 @@
         2288,
         0
       ],
-      "id": "7b4d77f7-7d3e-4ff2-8989-0589130c1e07"
+      "id": "16b456dc-3afb-4a90-bbf7-f0626c8cf015"
     },
     {
       "parameters": {
@@ -282,7 +282,7 @@
         2480,
         0
       ],
-      "id": "cbf512ca-1ca0-436e-bd10-1494d8e3d00b"
+      "id": "31740543-df8e-46c0-bbdc-19f24f096adb"
     },
     {
       "parameters": {
@@ -297,7 +297,7 @@
         2672,
         0
       ],
-      "id": "a3142755-ae14-4abf-9f2d-2b878cdbff94"
+      "id": "1e8cb813-a4a3-4eea-976a-57a257bffa77"
     },
     {
       "parameters": {
@@ -310,7 +310,7 @@
         0,
         208
       ],
-      "id": "eb1c0f49-e9c8-402d-8dfe-2ce92bc041db"
+      "id": "d03f33b9-18a4-49c9-9298-78eee866bad1"
     },
     {
       "parameters": {
@@ -325,7 +325,7 @@
         192,
         208
       ],
-      "id": "70232db3-b4b2-4653-8fd6-d35dc099a093"
+      "id": "374dd585-01bb-45b4-8b64-de546e5e7ca5"
     }
   ],
   "pinData": {},
@@ -529,29 +529,30 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "4d3e8f21-373c-4086-8a44-28dabb489a5d",
+  "versionId": "68221d2b-d5f0-44ea-9c6e-42c2a8e92ab4",
   "meta": {
-    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b0c0d75725deff7f1cd3c888712a4250b86d4d553af2f9bc1d9171d793e1efdc"
   },
-  "id": "XWVXZlBvq8Co7iK7",
+  "id": "0nN4S4WrUtZyi9tY",
   "tags": [
     {
-      "createdAt": "2025-10-16T23:45:00.633Z",
-      "updatedAt": "2025-10-16T23:45:00.633Z",
-      "id": "Jyvk52dJ2wNnSCbU",
-      "name": "SEO"
+      "updatedAt": "2025-11-11T06:00:02.994Z",
+      "createdAt": "2025-11-11T06:00:02.994Z",
+      "id": "oXyxSiTS1Ygvulx3",
+      "name": "Redaccion"
     },
     {
-      "createdAt": "2025-10-22T01:35:31.385Z",
-      "updatedAt": "2025-10-22T01:35:31.385Z",
-      "id": "cxNxNF5IUaobNuPq",
+      "updatedAt": "2025-11-11T05:59:48.696Z",
+      "createdAt": "2025-11-11T05:59:48.696Z",
+      "id": "7bJm9belK627hVuf",
       "name": "Investigacion"
     },
     {
-      "createdAt": "2025-10-22T09:45:35.720Z",
-      "updatedAt": "2025-10-22T09:45:35.720Z",
-      "id": "r75AIwbiwx4PUDUh",
-      "name": "Redaccion"
+      "updatedAt": "2025-11-11T04:17:52.069Z",
+      "createdAt": "2025-11-11T04:17:52.069Z",
+      "id": "CmhYBd1WY0kLj5vl",
+      "name": "SEO"
     }
   ]
 }

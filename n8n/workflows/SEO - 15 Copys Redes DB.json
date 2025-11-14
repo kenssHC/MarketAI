@@ -12,29 +12,29 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -624,
-        208
+        -608,
+        80
       ],
-      "id": "7430a87e-f0f9-4206-b7b2-7f68162fe43e",
+      "id": "5df87a48-4f24-42c2-a8c7-53923fbb2974",
       "webhookId": "bd5a41a1-627b-48c0-9d26-6f0c2fe1f094"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT\n  d.id AS draft_id,\n  d.idea_id,\n  d.keyword_cluster_id,\n  d.title,\n  d.meta_title,\n  d.meta_description,\n  d.tags,\n  d.content_markdown,\n  d.content_html,\n  d.word_count,\n  d.linkedin_copy,\n  d.facebook_copy,\n  d.status AS draft_status,\n  d.approved_at,\n  d.updated_at,\n  i.idea_title,\n  i.categoria AS idea_categoria,\n  i.status AS idea_status,\n  k.project_name,\n  k.cluster_name,\n  k.keyword_principal,\n  k.keywords_secundarias\nFROM drafts d\nLEFT JOIN ideas i ON i.id = d.idea_id\nLEFT JOIN keywords k ON k.id = d.keyword_cluster_id\nWHERE COALESCE(d.content_markdown, '') <> ''\n  {{ $json.body?.draft_id ? \"AND d.id = '\" + $json.body.draft_id.replace(/'/g, \"''\") + \"'\" : '' }}\n  {{ $json.body?.idea_id ? \"AND d.idea_id = '\" + $json.body.idea_id.replace(/'/g, \"''\") + \"'\" : '' }}\n  {{ $json.body?.keyword_cluster_id ? \"AND d.keyword_cluster_id = '\" + $json.body.keyword_cluster_id.replace(/'/g, \"''\") + \"'\" : '' }}\n  {{ $json.body?.project_name ? \"AND k.project_name = '\" + $json.body.project_name.replace(/'/g, \"''\") + \"'\" : '' }}\n  {{ $json.body?.status ? \"AND d.status = '\" + $json.body.status.replace(/'/g, \"''\") + \"'\" : \"AND d.status IN ('review','approved')\" }}\n  {{ $json.body?.force ? '' : \"AND (COALESCE(d.linkedin_copy, '') = '' OR COALESCE(d.facebook_copy, '') = '')\" }}\nORDER BY d.updated_at DESC NULLS LAST, d.created_at DESC\n{{ $json.body?.limit ? \"LIMIT \" + Math.max(1, Math.min(10, Number($json.body.limit))) : \"LIMIT 3\" }}",
+        "query": "=SELECT\n  d.id AS draft_id,\n  d.idea_id,\n  d.keyword_cluster_id,\n  d.title,\n  d.meta_title,\n  d.meta_description,\n  d.tags,\n  d.content_markdown,\n  d.content_html,\n  d.word_count,\n  d.linkedin_copy,\n  d.facebook_copy,\n  d.wordpress_post_url,\n  d.wordpress_post_id,\n  d.status AS draft_status,\n  d.approved_at,\n  d.updated_at,\n  i.idea_title,\n  i.categoria AS idea_categoria,\n  i.status AS idea_status,\n  k.project_name,\n  k.cluster_name,\n  k.keyword_principal,\n  k.keywords_secundarias\nFROM drafts d\nLEFT JOIN ideas i ON i.id = d.idea_id\nLEFT JOIN keywords k ON k.id = d.keyword_cluster_id\nWHERE COALESCE(d.content_markdown, d.content_html, '') <> ''\n  {{ $json.body?.draft_id ? \"AND d.id = '\" + $json.body.draft_id.replace(/'/g, \"''\") + \"'\" : '' }}\n  {{ $json.body?.idea_id ? \"AND d.idea_id = '\" + $json.body.idea_id.replace(/'/g, \"''\") + \"'\" : '' }}\n  {{ $json.body?.keyword_cluster_id ? \"AND d.keyword_cluster_id = '\" + $json.body.keyword_cluster_id.replace(/'/g, \"''\") + \"'\" : '' }}\n  {{ $json.body?.project_name ? \"AND k.project_name = '\" + $json.body.project_name.replace(/'/g, \"''\") + \"'\" : '' }}\n  {{ $json.body?.status\n        ? \"AND d.status = '\" + $json.body.status.replace(/'/g, \"''\") + \"'\"\n        : ($json.body?.draft_id ? '' : \"AND d.status IN ('review','approved','published')\") }}\n  {{ $json.body?.force ? '' : \"AND (COALESCE(d.linkedin_copy, '') = '' OR COALESCE(d.facebook_copy, '') = '')\" }}\nORDER BY d.updated_at DESC NULLS LAST, d.created_at DESC\n{{ $json.body?.limit ? \"LIMIT \" + Math.max(1, Math.min(10, Number($json.body.limit))) : \"LIMIT 3\" }}",
         "options": {}
       },
       "name": "Seleccionar Drafts Copys",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -416,
-        208
+        -400,
+        80
       ],
-      "id": "c8353ab3-210e-4f3b-a820-3152da414d9f",
+      "id": "92b9feaf-8e4c-4bc3-8bee-d8a3a470d754",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -69,23 +69,23 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -240,
-        208
+        -224,
+        80
       ],
-      "id": "13eb92fc-d7a2-4eed-9593-4e0e08111711"
+      "id": "abe0ef88-717e-4f69-ac8a-a3fb3f504ffb"
     },
     {
       "parameters": {
-        "jsCode": "                    function toArray(value) {\n                      if (value === undefined || value === null) return [];\n                      if (Array.isArray(value)) {\n                        return value.map((v) => (v ?? '').toString().trim()).filter(Boolean);\n                      }\n                      if (typeof value === 'string') {\n                        const trimmed = value.trim();\n                        if (!trimmed) return [];\n                        try {\n                          const parsed = JSON.parse(trimmed);\n                          if (Array.isArray(parsed)) {\n                            return parsed.map((v) => (v ?? '').toString().trim()).filter(Boolean);\n                          }\n                        } catch (_) {}\n                        return trimmed\n                          .replace(/^[{\\[(]/, '')\n                          .replace(/[}\\])]/, '')\n                          .split(/,|\\n|;|\\\\|\\|/)\n                          .map((part) => part.trim())\n                          .filter(Boolean);\n\n                      }\n                      if (typeof value === 'object') {\n                        return Object.values(value)\n                          .map((v) => (v ?? '').toString().trim())\n                          .filter(Boolean);\n                      }\n                      return [];\n                    }\n\n                    function stripMarkdown(markdown) {\n                      if (!markdown) return '';\n                      let text = markdown.replace(/```[\\s\\S]*?```/g, ' ');\n                      text = text.replace(/~{3}[\\s\\S]*?~{3}/g, ' ');\n                      text = text.replace(/<script[\\s\\S]*?<\\/script>/gi, ' ');\n                      text = text.replace(/<style[\\s\\S]*?<\\/style>/gi, ' ');\n                      text = text.replace(/!\\[[^\\]]*\\]\\([^)]+\\)/g, ' ');\n                      text = text.replace(/\\[[^\\]]*\\]\\(([^)]+)\\)/g, '$1');\n                      text = text.replace(/<[^>]+>/g, ' ');\n                      text = text.replace(/[#*_`>~-]+/g, ' ');\n                      text = text.replace(/\\n/g, ' ');\n                      return text.replace(/\\s+/g, ' ').trim();\n                    }\n\n                    function unique(values) {\n                      const seen = new Set();\n                      const result = [];\n                      for (const value of values) {\n                        const current = (value ?? '').toString().trim();\n                        if (!current) continue;\n                        const key = current.toLowerCase();\n                        if (seen.has(key)) continue;\n                        seen.add(key);\n                        result.push(current);\n                      }\n                      return result;\n                    }\n\n                    const requestItems = $items('Webhook Copys DB', 0) || [];\n                    const requestBody = requestItems[0]?.json?.body || {};\n\n                    const env = (name) => (typeof $env === 'function' ? $env(name) : undefined);\n                    const defaultModel = env('OPENAI_SOCIAL_MODEL') || env('OPENAI_DEFAULT_MODEL') || 'gpt-4o';\n\n                    function resolvePlatforms(raw) {\n                      const arr = unique(toArray(raw).map((value) => value.toLowerCase()));\n                      const supported = ['linkedin', 'facebook'];\n                      const filtered = arr.filter((value) => supported.includes(value));\n                      if (filtered.length) return filtered;\n                      return ['linkedin', 'facebook'];\n                    }\n\n                    const platforms = resolvePlatforms(requestBody.platforms);\n                    const tone = (requestBody.tone || 'profesional cercano').toString();\n                    const targetAudience = (requestBody.target_audience || 'Profesionales interesados en marketing digital y automatización').toString();\n                    const callToAction = (requestBody.call_to_action || 'Invita a comentar aprendizados y compartir con su red.').toString();\n                    const maxLenLinkedin = Number(requestBody.max_length_linkedin ?? 1300) || 1300;\n                    const maxLenFacebook = Number(requestBody.max_length_facebook ?? 2000) || 2000;\n                    const maxExcerptChars = Number(requestBody.max_excerpt_chars ?? 6000) || 6000;\n                    const openAiModel = (requestBody.openai_model || defaultModel).toString();\n\n                    return $input.all().map((item, index) => {\n                      const row = item.json || {};\n                      const markdown = (row.content_markdown || row.content_html || '').toString();\n                      const plain = stripMarkdown(markdown);\n                      const excerpt = plain.length > maxExcerptChars ? plain.slice(0, maxExcerptChars) : plain;\n                      const summary = plain\n                        .split(/\\. |\\n/)\n                        .map((part) => part.trim())\n                        .filter(Boolean)\n                        .slice(0, 4)\n                        .join('. ');\n\n                      const keywords = unique([row.keyword_principal, ...toArray(row.keywords_secundarias)]);\n                      const tags = unique(toArray(row.tags));\n\n                      const base = {\n                        draft_id: row.draft_id,\n                        idea_id: row.idea_id,\n                        keyword_cluster_id: row.keyword_cluster_id,\n                        idea_title: row.idea_title,\n                        idea_categoria: row.idea_categoria,\n                        idea_status: row.idea_status,\n                        cluster_name: row.cluster_name,\n                        project_name: row.project_name,\n                        keyword_principal: row.keyword_principal,\n                        keywords_secundarias: keywords,\n                        tags,\n                        existing_linkedin_copy: row.linkedin_copy || null,\n                        existing_facebook_copy: row.facebook_copy || null,\n                        title: row.title || row.meta_title || row.idea_title,\n                        meta_title: row.meta_title,\n                        meta_description: row.meta_description,\n                        word_count: row.word_count || plain.split(/\\s+/).filter(Boolean).length,\n                        article_plain: plain,\n                        article_excerpt: excerpt,\n                        article_summary: summary || excerpt.slice(0, 320),\n                        tone,\n                        target_audience: targetAudience,\n                        call_to_action: callToAction,\n                        platforms,\n                        max_length_linkedin: maxLenLinkedin,\n                        max_length_facebook: maxLenFacebook,\n                        request_body: requestBody,\n                        openai_model: openAiModel,\n                        start_time: new Date().toISOString(),\n                        start_ts_ms: Date.now() + index\n                      };\n\n                      return { json: base };\n                    });"
+        "jsCode": "                    function toArray(value) {\n                      if (value === undefined || value === null) return [];\n                      if (Array.isArray(value)) {\n                        return value.map((v) => (v ?? '').toString().trim()).filter(Boolean);\n                      }\n                      if (typeof value === 'string') {\n                        const trimmed = value.trim();\n                        if (!trimmed) return [];\n                        try {\n                          const parsed = JSON.parse(trimmed);\n                          if (Array.isArray(parsed)) {\n                            return parsed.map((v) => (v ?? '').toString().trim()).filter(Boolean);\n                          }\n                        } catch (_) {}\n                        return trimmed\n                          .replace(/^[{\\[(]/, '')\n                          .replace(/[}\\])]/, '')\n                          .split(/,|\\n|;|\\\\|\\|/)\n                          .map((part) => part.trim())\n                          .filter(Boolean);\n\n                      }\n                      if (typeof value === 'object') {\n                        return Object.values(value)\n                          .map((v) => (v ?? '').toString().trim())\n                          .filter(Boolean);\n                      }\n                      return [];\n                    }\n\n                    function stripMarkdown(markdown) {\n                      if (!markdown) return '';\n                      let text = markdown.replace(/```[\\s\\S]*?```/g, ' ');\n                      text = text.replace(/~{3}[\\s\\S]*?~{3}/g, ' ');\n                      text = text.replace(/<script[\\s\\S]*?<\\/script>/gi, ' ');\n                      text = text.replace(/<style[\\s\\S]*?<\\/style>/gi, ' ');\n                      text = text.replace(/!\\[[^\\]]*\\]\\([^)]+\\)/g, ' ');\n                      text = text.replace(/\\[([^\\]]*)\\]\\(([^)]+)\\)/g, '$1');\n                      text = text.replace(/<[^>]+>/g, ' ');\n                      text = text.replace(/[#*_`>~-]+/g, ' ');\n                      text = text.replace(/\\n/g, ' ');\n                      return text.replace(/\\s+/g, ' ').trim();\n                    }\n\n                    function unique(values) {\n                      const seen = new Set();\n                      const result = [];\n                      for (const value of values) {\n                        const current = (value ?? '').toString().trim();\n                        if (!current) continue;\n                        const key = current.toLowerCase();\n                        if (seen.has(key)) continue;\n                        seen.add(key);\n                        result.push(current);\n                      }\n                      return result;\n                    }\n\n                    const requestItems = $items('Webhook Copys DB', 0) || [];\n                    const requestBody = requestItems[0]?.json?.body || {};\n\n                    const env = (name) => (typeof $env === 'function' ? $env(name) : undefined);\n                    const defaultModel = env('OPENAI_SOCIAL_MODEL') || env('OPENAI_DEFAULT_MODEL') || 'gpt-4o';\n\n                    function resolvePlatforms(raw) {\n                      const arr = unique(toArray(raw).map((value) => value.toLowerCase()));\n                      const supported = ['linkedin', 'facebook'];\n                      const filtered = arr.filter((value) => supported.includes(value));\n                      if (filtered.length) return filtered;\n                      return ['linkedin', 'facebook'];\n                    }\n\n                    const platforms = resolvePlatforms(requestBody.platforms);\n                    const tone = (requestBody.tone || 'profesional cercano').toString();\n                    const targetAudience = (requestBody.target_audience || 'Profesionales interesados en marketing digital y automatización').toString();\n                    const callToAction = (requestBody.call_to_action || 'Invita a comentar aprendizados y compartir con su red.').toString();\n                    const maxLenLinkedin = Number(requestBody.max_length_linkedin ?? 1300) || 1300;\n                    const maxLenFacebook = Number(requestBody.max_length_facebook ?? 2000) || 2000;\n                    const maxExcerptChars = Number(requestBody.max_excerpt_chars ?? 6000) || 6000;\n                    const openAiModel = (requestBody.openai_model || defaultModel).toString();\n\n                    return $input.all().map((item, index) => {\n                      const row = item.json || {};\n                      const markdown = (row.content_markdown || row.content_html || '').toString();\n                      const plain = stripMarkdown(markdown);\n                      const excerpt = plain.length > maxExcerptChars ? plain.slice(0, maxExcerptChars) : plain;\n                      const summary = plain\n                        .split(/\\. |\\n/)\n                        .map((part) => part.trim())\n                        .filter(Boolean)\n                        .slice(0, 4)\n                        .join('. ');\n\n                      const keywords = unique([row.keyword_principal, ...toArray(row.keywords_secundarias)]);\n                      const tags = unique(toArray(row.tags));\n\n                      const base = {\n                        draft_id: row.draft_id,\n                        idea_id: row.idea_id,\n                        keyword_cluster_id: row.keyword_cluster_id,\n                        idea_title: row.idea_title,\n                        idea_categoria: row.idea_categoria,\n                        idea_status: row.idea_status,\n                        cluster_name: row.cluster_name,\n                        project_name: row.project_name,\n                        keyword_principal: row.keyword_principal,\n                        keywords_secundarias: keywords,\n                        tags,\n                        existing_linkedin_copy: row.linkedin_copy || null,\n                        existing_facebook_copy: row.facebook_copy || null,\n                        title: row.title || row.meta_title || row.idea_title,\n                        meta_title: row.meta_title,\n                        meta_description: row.meta_description,\n                        word_count: row.word_count || plain.split(/\\s+/).filter(Boolean).length,\n                        article_plain: plain,\n                        article_excerpt: excerpt,\n                        article_summary: summary || excerpt.slice(0, 320),\n                        tone,\n                        target_audience: targetAudience,\n                        call_to_action: callToAction,\n                        platforms,\n                        max_length_linkedin: maxLenLinkedin,\n                        max_length_facebook: maxLenFacebook,\n                        request_body: requestBody,\n                        openai_model: openAiModel,\n                        start_time: new Date().toISOString(),\n                        start_ts_ms: Date.now() + index\n                      };\n\n                      return { json: base };\n                    });"
       },
       "name": "Preparar Contexto Copys DB",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -16,
-        128
+        0,
+        0
       ],
-      "id": "af3e94b6-e0a5-4bb0-9230-01e1050bc598"
+      "id": "3af199fa-e335-4813-a6a9-ec09a60f593c"
     },
     {
       "parameters": {
@@ -95,10 +95,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        192,
-        128
+        208,
+        0
       ],
-      "id": "3bf3e2d5-9a5f-4306-90b7-8295e0f29d89"
+      "id": "4196edf5-196b-4fe3-8663-066baaa8ec45"
     },
     {
       "parameters": {
@@ -125,49 +125,49 @@
       "type": "n8n-nodes-base.openAi",
       "typeVersion": 1,
       "position": [
-        368,
-        128
+        384,
+        0
       ],
-      "id": "2e5f637b-0cb8-469a-b7b7-066315faf979",
+      "id": "4ec0d4f0-b78f-4080-904c-45686fae1fb9",
       "credentials": {
         "openAiApi": {
-          "id": "IDR18P8JJHeNClOr",
+          "id": "ZZhlUpBbl8y5n5sj",
           "name": "OpenAi account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "                    const rawMessage = $json.message?.content || $json.text || $json.response || '';\n                    let cleaned = String(rawMessage).trim();\n                    if (cleaned.startsWith('```json')) {\n                      cleaned = cleaned.replace(/^```json\\s*/i, '').replace(/```$/i, '').trim();\n                    } else if (cleaned.startsWith('```')) {\n                      cleaned = cleaned.replace(/^```\\s*/i, '').replace(/```$/i, '').trim();\n                    }\n\n                    let parsed;\n                    try {\n                      parsed = JSON.parse(cleaned);\n                    } catch (error) {\n                      throw new Error('No se pudo parsear la respuesta del modelo a JSON. Respuesta:' + cleaned);\n                    }\n\n                    const context = $items('Preparar Contexto Copys DB', 0)[$itemIndex]?.json || {};\n                    const platforms = Array.isArray(context.platforms) ? context.platforms : ['linkedin', 'facebook'];\n\n                    function resolvePlatform(data, key) {\n                      if (!data) return null;\n                      const direct = data[key];\n                      if (direct) return direct;\n                      const alt = data[key.charAt(0).toUpperCase() + key.slice(1)];\n                      if (alt) return alt;\n                      if (key === 'linkedin') {\n                        return data.LinkedIn || data.linked_in || data.linkedin_post || null;\n                      }\n                      if (key === 'facebook') {\n                        return data.Facebook || data.facebook_post || null;\n                      }\n                      return null;\n                    }\n\n                    function buildCopy(block, fallback) {\n                      if (!block || typeof block !== 'object') {\n                        return fallback || null;\n                      }\n                      const parts = [];\n                      if (block.hook) parts.push(block.hook.trim());\n                      if (block.body) parts.push(block.body.trim());\n                      if (block.cta) parts.push(block.cta.trim());\n                      if (Array.isArray(block.hashtags) && block.hashtags.length) {\n                        const tags = block.hashtags.map((tag) => (tag || '').toString().trim()).filter(Boolean);\n                        if (tags.length) parts.push(tags.join(' '));\n                      }\n                      return parts.filter(Boolean).join('') || fallback || null;\n                    }\n\n                    const linkedinStruct = resolvePlatform(parsed, 'linkedin');\n                    const facebookStruct = resolvePlatform(parsed, 'facebook');\n\n                    const linkedinCopy = platforms.includes('linkedin')\n                      ? buildCopy(linkedinStruct, context.existing_linkedin_copy)\n                      : context.existing_linkedin_copy || null;\n\n                    const facebookCopy = platforms.includes('facebook')\n                      ? buildCopy(facebookStruct, context.existing_facebook_copy)\n                      : context.existing_facebook_copy || null;\n\n                    const usage = $json.usage || $json.data?.[0]?.usage || {};\n                    const totalTokens = usage.total_tokens ?? usage.totalTokens ?? null;\n\n                    return [{\n                      json: {\n                        ...context,\n                        structured_copies: parsed,\n                        linkedin_copy_new: linkedinCopy,\n                        facebook_copy_new: facebookCopy,\n                        llm_tokens_used: totalTokens\n                      }\n                    }];"
+        "jsCode": "const rawMessage = $json.message?.content || $json.text || $json.response || '';\nlet cleaned = String(rawMessage).trim();\n\nif (cleaned.startsWith('')) {\n  cleaned = cleaned.replace(/^\\s*/i, '').replace(/```$/i, '').trim();\n} else if (cleaned.startsWith('```')) {\n  cleaned = cleaned.replace(/^```\\s*/i, '').replace(/```$/i, '').trim();\n}\n\nlet parsed;\ntry {\n  parsed = JSON.parse(cleaned);\n} catch (error) {\n  throw new Error('No se pudo parsear la respuesta del modelo a JSON. Respuesta:' + cleaned);\n}\n\nconst context = $items('Preparar Contexto Copys DB', 0)[$itemIndex]?.json || {};\nconst platforms = Array.isArray(context.platforms) ? context.platforms : ['linkedin', 'facebook'];\n\n// Intentar obtener una URL del artículo desde el contexto o desde el SELECT original\nconst articleUrlFallback =\n  context.article_url ||\n  context.wordpress_post_url ||\n  context.post_url ||\n  ($items('Seleccionar Drafts Copys', 0)[$itemIndex]?.json?.wordpress_post_url) ||\n  null;\n\nfunction resolvePlatform(data, key) {\n  if (!data) return null;\n  const direct = data[key];\n  if (direct) return direct;\n  const alt = data[key.charAt(0).toUpperCase() + key.slice(1)];\n  if (alt) return alt;\n  if (key === 'linkedin') {\n    return data.LinkedIn || data.linked_in || data.linkedin_post || null;\n  }\n  if (key === 'facebook') {\n    return data.Facebook || data.facebook_post || null;\n  }\n  return null;\n}\n\nfunction buildCopy(block, fallback) {\n  if (!block || typeof block !== 'object') {\n    return fallback || null;\n  }\n  const parts = [];\n  if (block.hook) parts.push(block.hook.trim());\n  if (block.body) parts.push(block.body.trim());\n  if (block.cta) parts.push(block.cta.trim());\n  if (Array.isArray(block.hashtags) && block.hashtags.length) {\n    const tags = block.hashtags.map((tag) => (tag || '').toString().trim()).filter(Boolean);\n    if (tags.length) parts.push(tags.join(' '));\n  }\n  return parts.filter(Boolean).join(' ') || fallback || null; // <-- con espacio\n}\n\nconst linkedinStruct = resolvePlatform(parsed, 'linkedin');\nconst facebookStruct = resolvePlatform(parsed, 'facebook');\n\nconst linkedinCopy = platforms.includes('linkedin')\n  ? buildCopy(linkedinStruct, context.existing_linkedin_copy)\n  : context.existing_linkedin_copy || null;\n\nconst facebookCopy = platforms.includes('facebook')\n  ? buildCopy(facebookStruct, context.existing_facebook_copy)\n  : context.existing_facebook_copy || null;\n\n// Enlaces individuales por plataforma (si el modelo no los da, usamos el fallback)\nconst linkedinLink = (linkedinStruct && linkedinStruct.link) || articleUrlFallback;\nconst facebookLink = (facebookStruct && facebookStruct.link) || articleUrlFallback;\n\nconst usage = $json.usage || $json.data?.[0]?.usage || {};\nconst totalTokens = usage.total_tokens ?? usage.totalTokens ?? null;\n\nreturn [{\n  json: {\n    ...context,\n    structured_copies: parsed,\n    linkedin_copy_new: linkedinCopy,\n    facebook_copy_new: facebookCopy,\n    linkedin_link: linkedinLink || null,\n    facebook_link: facebookLink || null,\n    llm_tokens_used: totalTokens\n  }\n}];"
       },
       "name": "Parsear Copys DB",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        528,
-        128
+        544,
+        0
       ],
-      "id": "15fe7fb2-b1ff-40a2-9f32-05ba4da2ea39"
+      "id": "3853f9e7-3f92-419e-9011-93be9af953c8"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "=UPDATE drafts\nSET\n  linkedin_copy = COALESCE($2, linkedin_copy),\n  facebook_copy = COALESCE($3, facebook_copy),\n  updated_at = NOW()\nWHERE id = $1::uuid\nRETURNING id, linkedin_copy, facebook_copy, updated_at;",
         "options": {
-          "queryReplacement": "={{$json.draft_id}}, {{$json.linkedin_copy}}, {{$json.facebook_copy}}"
+          "queryReplacement": "={{$json.draft_id}}, {{$json.linkedin_copy_new}}, {{$json.facebook_copy_new}}"
         }
       },
       "name": "Actualizar Draft Copys DB",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        704,
-        128
+        720,
+        0
       ],
-      "id": "9b03c947-f3af-49f7-91e7-f0d2af4ad8a5",
+      "id": "24f996b7-b5bb-445b-8420-c04627bd0153",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -180,10 +180,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        896,
-        128
+        912,
+        0
       ],
-      "id": "820f83d7-a6c2-4749-a244-845c6131c909"
+      "id": "0d36ee27-1d03-4853-94b1-162dd4c3313a"
     },
     {
       "parameters": {
@@ -193,10 +193,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1248,
-        128
+        1264,
+        0
       ],
-      "id": "0325818a-7940-4652-8831-e3495dfead05"
+      "id": "a78405f6-15a5-4985-93e4-61e8cb42f0df"
     },
     {
       "parameters": {
@@ -210,13 +210,13 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        1456,
-        128
+        1472,
+        0
       ],
-      "id": "9bc3e4ee-97d4-4aa2-aead-5168bc49ed34",
+      "id": "b9fcb5e0-1bc4-4d18-8b05-79806ce9c71a",
       "credentials": {
         "postgres": {
-          "id": "EmQwHYycOpHw660p",
+          "id": "iGGwBSO1JFSNAWkP",
           "name": "Postgres account"
         }
       }
@@ -229,10 +229,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1648,
-        128
+        1664,
+        0
       ],
-      "id": "3632770b-f732-4434-bf6c-0fe9a6a54b52"
+      "id": "015af664-ba40-4e94-932a-ba753dfc2e94"
     },
     {
       "parameters": {
@@ -244,10 +244,10 @@
       "type": "n8n-nodes-base.aggregate",
       "typeVersion": 1,
       "position": [
-        1840,
-        128
+        1856,
+        0
       ],
-      "id": "6c02ae0e-7944-4553-9c7c-b75948338f5f"
+      "id": "32126bf7-5e1a-4c1c-975b-2929f9f497b8"
     },
     {
       "parameters": {
@@ -257,10 +257,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2016,
-        128
+        2032,
+        0
       ],
-      "id": "bf7ede9a-f2ed-4409-9bd5-16b23c691208"
+      "id": "2645a7b5-0bc9-46aa-b65e-04d43867dc04"
     },
     {
       "parameters": {
@@ -272,10 +272,10 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        2192,
-        128
+        2208,
+        0
       ],
-      "id": "da81dc76-d70c-49d9-b01a-bea6a530e616"
+      "id": "556b43a9-2033-4a7c-9443-c272afb0b248"
     },
     {
       "parameters": {
@@ -285,10 +285,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -16,
-        336
+        0,
+        208
       ],
-      "id": "296b57fc-e552-43d5-9020-e41cab24d489"
+      "id": "8fcee543-619f-4506-a123-fa918ae25319"
     },
     {
       "parameters": {
@@ -300,10 +300,10 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        176,
-        336
+        192,
+        208
       ],
-      "id": "a4813e85-292e-48f4-a445-550ac0b3b107"
+      "id": "5e1f8377-70fd-486b-a5a2-7d3ec76f6b7e"
     },
     {
       "parameters": {
@@ -317,6 +317,10 @@
               {
                 "name": "message",
                 "value": "={{$json.facebook_copy_result}}"
+              },
+              {
+                "name": "link",
+                "value": "={{$json.facebook_link || $json.article_url || $json.wordpress_post_url}}"
               }
             ]
           }
@@ -325,20 +329,21 @@
       "type": "n8n-nodes-base.facebookGraphApi",
       "typeVersion": 1,
       "position": [
-        1072,
-        128
+        1088,
+        0
       ],
-      "id": "b9c7092b-b177-4083-8ad8-3f346111e426",
+      "id": "f5132dfa-fa9f-42ff-b64c-9df414efecd5",
       "name": "Facebook Graph API",
       "credentials": {
         "facebookGraphApi": {
-          "id": "qpSj0yG5N6ZzneQ1",
+          "id": "ZvcaAXAMzvNbgAEK",
           "name": "Facebook Graph account"
         }
       }
     },
     {
       "parameters": {
+        "authentication": "communityManagement",
         "postAs": "organization",
         "organization": "107313950",
         "text": "={{$json.linkedin_copy_result}}",
@@ -348,15 +353,15 @@
       "type": "n8n-nodes-base.linkedIn",
       "typeVersion": 1,
       "position": [
-        1088,
-        304
+        1104,
+        176
       ],
-      "id": "ac8bdb7a-5ddd-465e-89be-056d53531979",
+      "id": "01aaa970-5a51-4d1e-9ba5-a47359e9df01",
       "name": "Create a post",
       "credentials": {
-        "linkedInOAuth2Api": {
-          "id": "edVFe98TiydJ6Tc1",
-          "name": "LinkedIn account"
+        "linkedInCommunityManagementOAuth2Api": {
+          "id": "gHqeppLyOS7Nx45S",
+          "name": "LinkedIn Community Management account"
         }
       }
     }
@@ -567,24 +572,24 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "eb57cbee-e51d-4676-967f-624a3b6ffd57",
+  "versionId": "8e9bc4d2-19d0-4077-89a5-8c0387d4e713",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "8f42723d854102a22f8b6314b06bbb38f4b6e259798e3ba1bfd90033d4266ea4"
+    "instanceId": "b0c0d75725deff7f1cd3c888712a4250b86d4d553af2f9bc1d9171d793e1efdc"
   },
-  "id": "wofmkw2upizM7vR0",
+  "id": "6K5coX6SbvxuUWzD",
   "tags": [
     {
-      "createdAt": "2025-10-16T23:45:00.633Z",
-      "updatedAt": "2025-10-16T23:45:00.633Z",
-      "id": "Jyvk52dJ2wNnSCbU",
-      "name": "SEO"
+      "updatedAt": "2025-11-11T06:01:29.071Z",
+      "createdAt": "2025-11-11T06:01:29.071Z",
+      "id": "IPUzCQvG7j3cFrrj",
+      "name": "Social"
     },
     {
-      "createdAt": "2025-11-03T14:23:20.848Z",
-      "updatedAt": "2025-11-03T14:23:20.848Z",
-      "id": "tkvER0Rj2WxScTEg",
-      "name": "Social"
+      "updatedAt": "2025-11-11T04:17:52.069Z",
+      "createdAt": "2025-11-11T04:17:52.069Z",
+      "id": "CmhYBd1WY0kLj5vl",
+      "name": "SEO"
     }
   ]
 }

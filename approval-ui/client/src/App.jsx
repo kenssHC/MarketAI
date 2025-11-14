@@ -602,6 +602,7 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
             </button>
           </div>
 
+          {/*
           <div className="field-row field-row--even">
             <div>
               <label htmlFor="cluster-input">Cluster</label>
@@ -622,6 +623,7 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
               />
             </div>
           </div>
+          */}
 
           <label htmlFor="csv-upload">Subir CSV / Excel</label>
           <div className="field-row">
