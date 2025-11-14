@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
 import {
   fetchKeywords,
@@ -37,6 +37,27 @@ const BLOG_TABS = [
   { id: 'programacion', label: 'Calendario', disabled: false },
   { id: 'configuracion', label: 'Configuración', disabled: false }
 ];
+
+const normalizePreviewPayload = (preview) => {
+  if (!preview) return null;
+  const dataUrl = preview.imageDataUrl ?? preview.preview_image_data_url ?? null;
+  const base64 = preview.base64 ?? preview.preview_image_base64 ?? null;
+  const format = preview.format ?? preview.preview_image_format ?? null;
+  const alt = preview.altText ?? preview.preview_image_alt ?? null;
+  const prompt = preview.visualPrompt ?? preview.preview_image_visual_prompt ?? null;
+
+  if (!dataUrl && !base64 && !alt && !prompt) {
+    return null;
+  }
+
+  return {
+    preview_image_data_url: dataUrl,
+    preview_image_base64: base64,
+    preview_image_format: format,
+    preview_image_alt: alt,
+    preview_image_visual_prompt: prompt
+  };
+};
 
 function Toast({ toast }) {
   if (!toast) return null;
@@ -378,7 +399,7 @@ function BlogConfiguracion({ onToast }) {
   );
 }
 
-function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
+function BlogKeywords({ onOpenEditor, onToast, refreshKey, onPreviewCacheUpdate = () => {} }) {
   const [keywords, setKeywords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [manualKeyword, setManualKeyword] = useState('');
@@ -572,10 +593,18 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
 
         updateProgress(processed, `Procesando: ${keywordItem.keyword_principal}`);
 
-        await generateArticleFromKeyword(keywordItem.id, {
+        const generationResult = await generateArticleFromKeyword(keywordItem.id, {
           projectName: keywordItem.project_name || projectName,
           generateImage: shouldGenerateImages
         });
+
+        if (generationResult?.draft?.id) {
+          if (shouldGenerateImages && generationResult.imagePreview) {
+            onPreviewCacheUpdate(generationResult.draft.id, generationResult.imagePreview);
+          } else if (!shouldGenerateImages) {
+            onPreviewCacheUpdate(generationResult.draft.id, null);
+          }
+        }
 
         processed += 1;
         updateProgress(
@@ -891,6 +920,11 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey }) {
 
           <div className="keyword-actions">
             <span className="muted">{pendingCount} keywords pendientes</span>
+            <span className="muted">
+              {includeImagesSetting
+                ? 'Se generarán artículos con imágenes'
+                : 'Se generarán artículos sin imágenes'}
+            </span>
             <button
               className="btn btn-primary"
               onClick={handleGenerateAll}
@@ -1587,6 +1621,23 @@ export default function App() {
   const [editorBundle, setEditorBundle] = useState(null);
   const [toast, setToast] = useState(null);
   const [keywordsRefreshKey, setKeywordsRefreshKey] = useState(0);
+  const [draftPreviewCache, setDraftPreviewCache] = useState({});
+
+  const updatePreviewCache = useCallback((draftId, preview) => {
+    if (!draftId) return;
+    setDraftPreviewCache((prev) => {
+      const normalized = normalizePreviewPayload(preview);
+      if (!normalized) {
+        if (!prev[draftId]) return prev;
+        const { [draftId]: _removed, ...rest } = prev;
+        return rest;
+      }
+      return {
+        ...prev,
+        [draftId]: normalized
+      };
+    });
+  }, []);
 
   function showToast(message, variant = 'info') {
     setToast({ message, variant });
@@ -1600,7 +1651,11 @@ export default function App() {
 
   function handleOpenEditor(bundle) {
     if (!bundle?.draft) return;
-    setEditorBundle(bundle);
+    const cachedPreview = draftPreviewCache[bundle.draft.id];
+    const draftWithPreview = cachedPreview
+      ? { ...bundle.draft, ...cachedPreview }
+      : bundle.draft;
+    setEditorBundle({ ...bundle, draft: draftWithPreview });
   }
 
   function handleCloseEditor() {
@@ -1614,6 +1669,7 @@ export default function App() {
         onOpenEditor={handleOpenEditor}
         onToast={showToast}
         refreshKey={keywordsRefreshKey}
+        onPreviewCacheUpdate={updatePreviewCache}
       />
     );
   } else if (activeBlogTab === 'revision') {
@@ -1697,12 +1753,18 @@ export default function App() {
         <BlogEditor
           bundle={editorBundle}
           onClose={handleCloseEditor}
-          onSaved={(draft) => {
-            setEditorBundle((prev) => (prev ? { ...prev, draft } : prev));
+          onSaved={(updatedDraft) => {
+            if (updatedDraft?.id) {
+              updatePreviewCache(updatedDraft.id, updatedDraft);
+            }
+            setEditorBundle((prev) => (prev ? { ...prev, draft: updatedDraft } : prev));
             requestKeywordsRefresh();
           }}
-          onRegenerated={(bundle) => {
-            setEditorBundle(bundle);
+          onRegenerated={(nextBundle) => {
+            if (nextBundle?.draft?.id) {
+              updatePreviewCache(nextBundle.draft.id, nextBundle.draft);
+            }
+            setEditorBundle(nextBundle);
             requestKeywordsRefresh();
           }}
           onToast={showToast}
