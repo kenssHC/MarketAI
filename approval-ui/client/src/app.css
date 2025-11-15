@@ -623,7 +623,7 @@ textarea {
 }
 
 .editor-panel {
-  width: min(1200px, 100%);
+  width: min(1300px, 100%);
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -640,6 +640,19 @@ textarea {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+}
+
+.editor-header__main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor-header__title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .publication-status {
@@ -720,6 +733,19 @@ textarea {
   resize: none;
 }
 
+.article-prompt-block {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.article-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
 .editor-actions {
   display: flex;
   justify-content: flex-end;
@@ -749,6 +775,38 @@ textarea {
   border: 1px solid rgba(148, 163, 184, 0.2);
   margin-bottom: 12px;
   display: block;
+}
+
+.footer-publish-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.schedule-inline-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.schedule-inline-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.schedule-inline-form label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.8);
+}
+
+.schedule-inline-form input {
+  min-width: 140px;
 }
 
 /* Publication Options */
@@ -1246,6 +1304,7 @@ textarea {
 .calendar-draft-title {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;

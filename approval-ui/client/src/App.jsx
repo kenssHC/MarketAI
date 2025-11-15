@@ -19,7 +19,8 @@ import {
   fetchSettings,
   saveSettings,
   triggerAutoSchedule,
-  hasManualSchedules
+  hasManualSchedules,
+  fetchDraftById
 } from './api';
 import './app.css';
 import { deleteDraft as apiDeleteDraft } from './api';
@@ -1545,30 +1546,25 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
     <div className="editor-overlay">
       <div className="editor-panel">
         <header className="editor-header">
-          <div>
-            <h2>Editar Artículo</h2>
-            <p className="muted">
-              {keyword && idea ? (
-                <>Keyword: {keyword.keyword_principal} - Idea: {idea.idea_title}</>
-              ) : (
-                <>Editando borrador</>
-              )}
-            </p>
-            <div className={`publication-status publication-status--${publicationInfo.status}`}>
-              <span className="publication-status__label">{publicationInfo.label}</span>
-              {publicationInfo.date && (
-                <span className="publication-status__date">{publicationInfo.date}</span>
-              )}
-              {publicationInfo.url && (
-                <a 
-                  href={publicationInfo.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="publication-status__link"
-                >
-                  Ver en WordPress
-                </a>
-              )}
+          <div className="editor-header__main">
+            <div className="editor-header__title">
+              <h2>Editar Artículo</h2>
+              <div className={`publication-status publication-status--${publicationInfo.status}`}>
+                <span className="publication-status__label">{publicationInfo.label}</span>
+                {publicationInfo.date && (
+                  <span className="publication-status__date">{publicationInfo.date}</span>
+                )}
+                {publicationInfo.url && (
+                  <a 
+                    href={publicationInfo.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="publication-status__link"
+                  >
+                    Ver en WordPress
+                  </a>
+                )}
+              </div>
             </div>
           </div>
           <button className="btn btn-ghost" onClick={onClose}>Cerrar</button>
@@ -1585,6 +1581,23 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
                 setIsDirty(true);
               }}
             />
+            <div className="article-prompt-block">
+              <label>Prompt de Artículo</label>
+              <textarea
+                className="small-textarea"
+                value={articlePrompt}
+                readOnly
+              />
+            </div>
+            <div className="article-prompt-actions">
+              <button
+                className="btn btn-secondary"
+                onClick={handleRegenerate}
+                disabled={regenerating || !keyword}
+              >
+                {regenerating ? 'Generando...' : 'Generar nuevamente'}
+              </button>
+            </div>
           </section>
 
           <section className="editor-sidebar">
@@ -1619,22 +1632,6 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
                   setIsDirty(true);
                 }}
               />
-            </div>
-
-            <h3>Prompt de Artículo</h3>
-            <div className="card card--sub">
-              <textarea
-                className="small-textarea"
-                value={articlePrompt}
-                readOnly
-              />
-              <button
-                className="btn btn-secondary"
-                onClick={handleRegenerate}
-                disabled={regenerating || !keyword}
-              >
-                {regenerating ? 'Generando...' : 'Generar nuevamente'}
-              </button>
             </div>
 
             <h3>Imagen Principal</h3>
@@ -1675,28 +1672,24 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
           </section>
         </div>
 
-        <div className="editor-section">
-          <h3>Publicación</h3>
-          <div className="publish-options">
-            <button 
-              className="btn btn-publish-now" 
-              onClick={handlePublishNow} 
+        <footer className="editor-footer">
+          <div className="footer-publish-actions">
+            <button
+              className="btn btn-publish-now"
+              onClick={handlePublishNow}
               disabled={publishing || !draft.id}
             >
               {publishing ? 'Publicando...' : 'Publicar Ahora'}
             </button>
-            <button 
-              className="btn btn-schedule" 
+            <button
+              className="btn btn-schedule"
               onClick={() => setShowScheduleForm(!showScheduleForm)}
               disabled={scheduling}
             >
-              Programar Publicación
+              Programar
             </button>
-          </div>
-          
-          {showScheduleForm && (
-            <div className="schedule-form">
-              <div className="form-row">
+            {showScheduleForm && (
+              <div className="schedule-inline-form">
                 <div className="form-group">
                   <label htmlFor="scheduled-date">Fecha</label>
                   <input
@@ -1716,24 +1709,16 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
                     onChange={(e) => setScheduledTime(e.target.value)}
                   />
                 </div>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSchedule}
+                  disabled={scheduling || !scheduledDate}
+                >
+                  {scheduling ? 'Programando...' : 'Confirmar'}
+                </button>
               </div>
-              {scheduledDate && (
-                <p className="schedule-info">
-                  Se publicará el {new Date(scheduledDate).toLocaleDateString('es-ES')} a las {scheduledTime}
-                </p>
-              )}
-              <button 
-                className="btn btn-primary" 
-                onClick={handleSchedule} 
-                disabled={scheduling || !scheduledDate}
-              >
-                {scheduling ? 'Programando...' : 'Confirmar Programación'}
-              </button>
-            </div>
-          )}
-        </div>
-
-        <footer className="editor-footer">
+            )}
+          </div>
           <div className="spacer" />
           <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
           <button className="btn btn-secondary" disabled>Eliminar</button>
@@ -1783,13 +1768,23 @@ export default function App() {
     setKeywordsRefreshKey((key) => key + 1);
   }
 
-  function handleOpenEditor(bundle) {
-    if (!bundle?.draft) return;
-    const cachedPreview = draftPreviewCache[bundle.draft.id];
-    const draftWithPreview = cachedPreview
-      ? { ...bundle.draft, ...cachedPreview }
-      : bundle.draft;
-    setEditorBundle({ ...bundle, draft: draftWithPreview });
+  async function handleOpenEditor(bundle) {
+    if (!bundle?.draft?.id) return;
+    try {
+      const latestDraft = await fetchDraftById(bundle.draft.id);
+      const cachedPreview = draftPreviewCache[bundle.draft.id];
+      const draftWithPreview = cachedPreview
+        ? { ...latestDraft, ...cachedPreview }
+        : latestDraft;
+      setEditorBundle({ ...bundle, draft: draftWithPreview });
+    } catch (error) {
+      console.warn('[ui] No se pudo refrescar el draft, usando datos locales', error);
+      const cachedPreview = draftPreviewCache[bundle.draft.id];
+      const draftWithPreview = cachedPreview
+        ? { ...bundle.draft, ...cachedPreview }
+        : bundle.draft;
+      setEditorBundle({ ...bundle, draft: draftWithPreview });
+    }
   }
 
   function handleCloseEditor() {
