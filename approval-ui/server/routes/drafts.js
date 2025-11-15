@@ -665,11 +665,30 @@ router.delete('/schedule/:schedule_id', async (req, res) => {
 router.post('/auto-schedule', async (req, res) => {
   try {
     const { autoScheduleApprovedDrafts } = await import('../services/scheduler.js');
-    await autoScheduleApprovedDrafts();
+    const forceManualReset = req.body?.forceManualReset === true;
+    await autoScheduleApprovedDrafts({ forceManualReset });
     res.json({ message: 'Artículos programados automáticamente según configuración' });
   } catch (error) {
     console.error('[api] failed to auto-schedule', error);
     res.status(500).json({ message: 'Error al programar automáticamente', details: error.message });
+  }
+});
+
+router.get('/has-manual-schedules', async (_req, res) => {
+  try {
+    const result = await query(`
+      SELECT EXISTS (
+        SELECT 1
+        FROM scheduled_publications
+        WHERE status = 'pending'
+          AND scheduled_automatically = false
+      ) AS has_manual
+    `);
+
+    res.json({ hasManualSchedules: result.rows[0]?.has_manual || false });
+  } catch (error) {
+    console.error('[api] failed to check manual schedules', error);
+    res.status(500).json({ message: 'Error al verificar programaciones manuales', details: error.message });
   }
 });
 

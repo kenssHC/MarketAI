@@ -176,9 +176,18 @@ export async function saveSettings(body = {}) {
   return handleResponse(response, 'No se pudo guardar la configuración');
 }
 
-export async function triggerAutoSchedule() {
+export async function triggerAutoSchedule(forceManualReset = false) {
   const response = await fetch('/api/drafts/auto-schedule', {
-    method: 'POST'
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ forceManualReset })
   });
   return handleResponse(response, 'No se pudo programar automáticamente');
+}
+
+export async function hasManualSchedules() {
+  const response = await fetch('/api/drafts/has-manual-schedules');
+  return handleResponse(response, 'No se pudo verificar programaciones manuales');
 }

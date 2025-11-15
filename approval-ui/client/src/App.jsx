@@ -18,7 +18,8 @@ import {
   fetchScheduledPublications,
   fetchSettings,
   saveSettings,
-  triggerAutoSchedule
+  triggerAutoSchedule,
+  hasManualSchedules
 } from './api';
 import './app.css';
 import { deleteDraft as apiDeleteDraft } from './api';
@@ -32,10 +33,10 @@ const NAV_ITEMS = [
 ];
 
 const BLOG_TABS = [
+  { id: 'configuracion', label: 'Configuración', disabled: false },
   { id: 'keywords', label: 'Keywords' },
   //{ id: 'revision', label: 'Revision QA' },
-  { id: 'programacion', label: 'Calendario', disabled: false },
-  { id: 'configuracion', label: 'Configuración', disabled: false }
+  { id: 'programacion', label: 'Calendario', disabled: false }
 ];
 
 const normalizePreviewPayload = (preview) => {
@@ -366,11 +367,31 @@ function BlogConfiguracion({ onToast }) {
         publishDays: selectedDays,
         includeImages
       });
-      
-      // Programar automáticamente los drafts aprobados según la nueva configuración
-      await triggerAutoSchedule();
-      
-      onToast('Configuración guardada y artículos programados', 'success');
+      let forceManualReset = false;
+      try {
+        const manualCheck = await hasManualSchedules();
+        if (manualCheck?.hasManualSchedules) {
+          const confirmation = await Swal.fire({
+            icon: 'warning',
+            title: '¿Reprogramar artículos manuales?',
+            html: 'Existen publicaciones programadas manualmente. Si continúas, se reordenarán junto con las automáticas.',
+            confirmButtonText: 'Sí, reprogramar todo',
+            cancelButtonText: 'Cancelar',
+            showCancelButton: true,
+            focusCancel: true
+          });
+          if (!confirmation.isConfirmed) {
+            onToast('Configuración guardada, pero no se reordenó el calendario.', 'info');
+            return;
+          }
+          forceManualReset = true;
+        }
+      } catch (manualError) {
+        console.warn('[config] No se pudo validar programaciones manuales', manualError);
+      }
+
+      await triggerAutoSchedule(forceManualReset);
+      onToast('Configuración guardada y artículos reprogramados', 'success');
     } catch (error) {
       console.error(error);
       onToast(error.message, 'error');

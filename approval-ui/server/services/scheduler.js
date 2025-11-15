@@ -2,7 +2,8 @@
 import callN8nWebhook from './n8n.js';
 import config from '../config.js';
 
-export async function autoScheduleApprovedDrafts() {
+export async function autoScheduleApprovedDrafts(options = {}) {
+  const { forceManualReset = false } = options;
   try {
     // Get settings
     const settingsResult = await query(`
@@ -27,18 +28,25 @@ export async function autoScheduleApprovedDrafts() {
       saturday: 6
     };
 
-    // Get approved drafts not scheduled yet
-    // Cancelar programaciones automáticas previas que aún están pendientes
-    await query(`
-      UPDATE scheduled_publications
-      SET status = 'cancelled',
-          cancelled_at = NOW(),
-          cancelled_by = 'auto-scheduler',
-          cancellation_reason = 'Re-programación por cambio de configuración'
-      WHERE status = 'pending'
-        AND scheduled_automatically = true
-        AND scheduled_datetime > NOW()
-    `);
+    // Cancel pending schedules (automatic always, manual only if forced)
+    const cancelParams = [forceManualReset];
+    await query(
+      `
+        UPDATE scheduled_publications
+        SET status = 'cancelled',
+            cancelled_at = NOW(),
+            cancelled_by = 'auto-scheduler',
+            cancellation_reason = 'Re-programación por cambio de configuración',
+            updated_at = NOW()
+        WHERE status = 'pending'
+          AND scheduled_datetime > NOW()
+          AND (
+            scheduled_automatically = true
+            OR ($1 = true AND scheduled_automatically = false)
+          )
+      `,
+      cancelParams
+    );
     
     const draftsResult = await query(`
       SELECT 
