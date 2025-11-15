@@ -54,7 +54,7 @@ export async function autoScheduleApprovedDrafts(options = {}) {
         d.title, 
         COALESCE(d.approved_at, d.updated_at, d.created_at) AS priority_date
       FROM drafts d
-      WHERE d.status = 'approved'
+      WHERE d.status IN ('draft','review','approved')
         AND d.published_at IS NULL
         AND NOT EXISTS (
           SELECT 1
