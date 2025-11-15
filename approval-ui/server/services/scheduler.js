@@ -2,7 +2,8 @@
 import callN8nWebhook from './n8n.js';
 import config from '../config.js';
 
-export async function autoScheduleApprovedDrafts() {
+export async function autoScheduleApprovedDrafts(options = {}) {
+  const { resetPending = false } = options;
   try {
     // Get settings
     const settingsResult = await query(`
@@ -27,27 +28,48 @@ export async function autoScheduleApprovedDrafts() {
       saturday: 6
     };
 
-    // Get approved drafts not scheduled yet
-    // Cancelar programaciones automáticas previas que aún están pendientes
-    await query(`
-      UPDATE scheduled_publications
-      SET status = 'cancelled',
-          cancelled_at = NOW(),
-          cancelled_by = 'auto-scheduler',
-          cancellation_reason = 'Re-programación por cambio de configuración'
-      WHERE status = 'pending'
-        AND scheduled_automatically = true
-        AND scheduled_datetime > NOW()
-    `);
+    // Cancelar programaciones automáticas previas solo cuando se fuerza un reseteo (cambio de config)
+    if (resetPending) {
+      await query(`
+        UPDATE scheduled_publications
+        SET status = 'cancelled',
+            cancelled_at = NOW(),
+            cancelled_by = 'auto-scheduler',
+            cancellation_reason = 'Re-programación por cambio de configuración'
+        WHERE status = 'pending'
+          AND scheduled_automatically = true
+          AND scheduled_datetime > NOW()
+      `);
+    }
     
     const draftsResult = await query(`
+      WITH pending_drafts AS (
+        SELECT d.id, d.title, d.created_at
+        FROM drafts d
+        WHERE d.status IN ('draft', 'review')
+          AND d.published_at IS NULL
+          AND d.created_at >= CURRENT_DATE
+          AND NOT EXISTS (
+            SELECT 1 FROM scheduled_publications sp
+            WHERE sp.draft_id = d.id AND sp.status = 'pending'
+          )
+        ORDER BY d.created_at ASC
+        LIMIT 150
+      ),
+      manual_pending AS (
+        SELECT sp.draft_id
+        FROM scheduled_publications sp
+        JOIN drafts d ON d.id = sp.draft_id
+        WHERE sp.status = 'pending'
+          AND sp.scheduled_automatically = false
+          AND d.published_at IS NULL
+        LIMIT 50
+      )
+      SELECT * FROM pending_drafts
+      UNION ALL
       SELECT d.id, d.title, d.created_at
       FROM drafts d
-      WHERE d.status IN ('draft', 'review')
-        AND d.published_at IS NULL
-        AND d.created_at >= CURRENT_DATE
-      ORDER BY d.created_at ASC
-      LIMIT 100
+      JOIN manual_pending m ON m.draft_id = d.id
     `);
 
     if (draftsResult.rowCount === 0) {
@@ -104,7 +126,7 @@ export async function autoScheduleApprovedDrafts() {
         const dateKey = currentDate.toISOString().split('T')[0];
 
         if (publishDays.includes(dayOfWeek)) {
-          const count = scheduledCounts[dateKey] || 0;
+            const count = scheduledCounts[dateKey] || 0;
           
           if (count < publicationsPerDay) {
             // Hora predeterminada de publicación: 12:00

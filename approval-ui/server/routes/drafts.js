@@ -665,7 +665,7 @@ router.delete('/schedule/:schedule_id', async (req, res) => {
 router.post('/auto-schedule', async (req, res) => {
   try {
     const { autoScheduleApprovedDrafts } = await import('../services/scheduler.js');
-    await autoScheduleApprovedDrafts();
+    await autoScheduleApprovedDrafts({ resetPending: true });
     res.json({ message: 'Artículos programados automáticamente según configuración' });
   } catch (error) {
     console.error('[api] failed to auto-schedule', error);
