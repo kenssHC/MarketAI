@@ -2,8 +2,7 @@
 import callN8nWebhook from './n8n.js';
 import config from '../config.js';
 
-export async function autoScheduleApprovedDrafts(options = {}) {
-  const { resetPending = false } = options;
+export async function autoScheduleApprovedDrafts() {
   try {
     // Get settings
     const settingsResult = await query(`
@@ -28,48 +27,35 @@ export async function autoScheduleApprovedDrafts(options = {}) {
       saturday: 6
     };
 
-    // Cancelar programaciones automáticas previas solo cuando se fuerza un reseteo (cambio de config)
-    if (resetPending) {
-      await query(`
-        UPDATE scheduled_publications
-        SET status = 'cancelled',
-            cancelled_at = NOW(),
-            cancelled_by = 'auto-scheduler',
-            cancellation_reason = 'Re-programación por cambio de configuración'
-        WHERE status = 'pending'
-          AND scheduled_automatically = true
-          AND scheduled_datetime > NOW()
-      `);
-    }
+    // Get approved drafts not scheduled yet
+    // Cancelar programaciones automáticas previas que aún están pendientes
+    await query(`
+      UPDATE scheduled_publications
+      SET status = 'cancelled',
+          cancelled_at = NOW(),
+          cancelled_by = 'auto-scheduler',
+          cancellation_reason = 'Re-programación por cambio de configuración'
+      WHERE status = 'pending'
+        AND scheduled_automatically = true
+        AND scheduled_datetime > NOW()
+    `);
     
     const draftsResult = await query(`
-      WITH pending_drafts AS (
-        SELECT d.id, d.title, d.created_at
-        FROM drafts d
-        WHERE d.status IN ('draft', 'review')
-          AND d.published_at IS NULL
-          AND d.created_at >= CURRENT_DATE
-          AND NOT EXISTS (
-            SELECT 1 FROM scheduled_publications sp
-            WHERE sp.draft_id = d.id AND sp.status = 'pending'
-          )
-        ORDER BY d.created_at ASC
-        LIMIT 150
-      ),
-      manual_pending AS (
-        SELECT sp.draft_id
-        FROM scheduled_publications sp
-        JOIN drafts d ON d.id = sp.draft_id
-        WHERE sp.status = 'pending'
-          AND sp.scheduled_automatically = false
-          AND d.published_at IS NULL
-        LIMIT 50
-      )
-      SELECT * FROM pending_drafts
-      UNION ALL
-      SELECT d.id, d.title, d.created_at
+      SELECT 
+        d.id, 
+        d.title, 
+        COALESCE(d.approved_at, d.updated_at, d.created_at) AS priority_date
       FROM drafts d
-      JOIN manual_pending m ON m.draft_id = d.id
+      WHERE d.status = 'approved'
+        AND d.published_at IS NULL
+        AND NOT EXISTS (
+          SELECT 1
+          FROM scheduled_publications sp
+          WHERE sp.draft_id = d.id
+            AND sp.status IN ('pending', 'published')
+        )
+      ORDER BY priority_date ASC
+      LIMIT 500
     `);
 
     if (draftsResult.rowCount === 0) {
@@ -79,8 +65,17 @@ export async function autoScheduleApprovedDrafts(options = {}) {
     console.log(`[auto-scheduler] Found ${draftsResult.rowCount} drafts to schedule`);
 
     // Get next available publication slots
-    const publishDays = settings.publish_days.map(day => daysMap[day]);
-    const publicationsPerDay = settings.publications_per_day || 1;
+    const rawPublishDays = Array.isArray(settings.publish_days)
+      ? settings.publish_days
+      : [];
+    const publishDays = rawPublishDays
+      .map((day) => daysMap[String(day).toLowerCase()])
+      .filter((value) => typeof value === 'number');
+    if (!publishDays.length) {
+      console.warn('[auto-scheduler] No hay días configurados. Abortando programación.');
+      return;
+    }
+    const publicationsPerDay = Math.max(1, settings.publications_per_day || 1);
 
     // Get already scheduled publications count per day
     const scheduledResult = await query(`
@@ -126,7 +121,7 @@ export async function autoScheduleApprovedDrafts(options = {}) {
         const dateKey = currentDate.toISOString().split('T')[0];
 
         if (publishDays.includes(dayOfWeek)) {
-            const count = scheduledCounts[dateKey] || 0;
+          const count = scheduledCounts[dateKey] || 0;
           
           if (count < publicationsPerDay) {
             // Hora predeterminada de publicación: 12:00
