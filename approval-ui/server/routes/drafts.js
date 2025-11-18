@@ -25,6 +25,11 @@ SELECT
   d.featured_image_url,
   d.featured_image_alt,
   d.featured_image_prompt,
+  d.preview_image_data_url,
+  d.preview_image_base64,
+  d.preview_image_format,
+  d.preview_image_alt,
+  d.preview_image_visual_prompt,
   d.linkedin_copy,
   d.facebook_copy,
   d.created_at,
@@ -115,6 +120,11 @@ function mapDraftRow(row) {
     featuredImageUrl: row.featured_image_url,
     featuredImageAlt: row.featured_image_alt,
     featuredImagePrompt: row.featured_image_prompt,
+    previewImageDataUrl: row.preview_image_data_url,
+    previewImageBase64: row.preview_image_base64,
+    previewImageFormat: row.preview_image_format,
+    previewImageAlt: row.preview_image_alt,
+    previewImageVisualPrompt: row.preview_image_visual_prompt,
     linkedinCopy: row.linkedin_copy,
     facebookCopy: row.facebook_copy,
     createdAt: row.created_at,
@@ -133,8 +143,36 @@ function mapDraftRow(row) {
     scheduledDate: row.scheduled_date,
     scheduledTime: row.scheduled_time,
     scheduledDatetime: row.scheduled_datetime,
-    scheduleStatus: row.schedule_status
+    scheduleStatus: row.schedule_status,
+    previewImageDataUrl: row.preview_image_data_url,
+    previewImageBase64: row.preview_image_base64,
+    previewImageFormat: row.preview_image_format,
+    previewImageAlt: row.preview_image_alt,
+    previewImageVisualPrompt: row.preview_image_visual_prompt
   };
+}
+
+async function updateDraftPreviewFields(draftId, preview) {
+  const payload = preview || {};
+  await query(
+    `UPDATE drafts
+     SET
+       preview_image_data_url = $2,
+       preview_image_base64 = $3,
+       preview_image_format = $4,
+       preview_image_alt = $5,
+       preview_image_visual_prompt = $6,
+       updated_at = NOW()
+     WHERE id = $1`,
+    [
+      draftId,
+      payload.imageDataUrl || null,
+      payload.base64 || null,
+      payload.format || null,
+      payload.altText || null,
+      payload.visualPrompt || null
+    ]
+  );
 }
 
 router.get('/', async (req, res) => {
@@ -309,6 +347,8 @@ router.post('/:id/approve', async (req, res) => {
 
         // El workflow ya actualiza la BD con la URL de WordPress
         console.log('[api] imagen subida a WordPress durante aprobación', workflowResponse);
+
+        await updateDraftPreviewFields(req.params.id, null);
       } catch (imageError) {
         console.error('[api] error al subir imagen durante aprobación', imageError);
         // Continuar con la aprobación aunque falle la imagen
@@ -418,9 +458,28 @@ router.post('/:id/image', async (req, res) => {
       });
     }
 
+    const previewPayload = {
+      imageDataUrl: firstDraft.preview_image_data_url || null,
+      base64: firstDraft.preview_image_base64 || null,
+      format: firstDraft.image_format || null,
+      altText: firstDraft.alt_text || null,
+      visualPrompt: firstDraft.visual_prompt || null
+    };
+
+    await updateDraftPreviewFields(id, previewPayload);
+
     // Consultar el draft actualizado de la BD (puede no tener cambios si es preview)
     const refreshed = await query(
-      `SELECT id, featured_image_url, featured_image_alt, featured_image_prompt
+      `SELECT 
+         id,
+         featured_image_url,
+         featured_image_alt,
+         featured_image_prompt,
+         preview_image_data_url,
+         preview_image_base64,
+         preview_image_format,
+         preview_image_alt,
+         preview_image_visual_prompt
        FROM drafts
        WHERE id = $1`,
       [id]

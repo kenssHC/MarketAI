@@ -119,7 +119,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        608,
+        928,
         256
       ],
       "id": "082130f6-028a-46c5-b323-b78045ea2571"
@@ -132,8 +132,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1136,
-        544
+        1488,
+        672
       ],
       "id": "deb51689-b1cb-4a70-a5ba-2f504fe7a92f"
     },
@@ -148,7 +148,7 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -1392,
+        -1296,
         256
       ],
       "id": "f82d0b51-7f1f-429a-b093-0ccbc8b26983",
@@ -164,7 +164,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        -1024,
+        -976,
         256
       ],
       "id": "6feda99e-671e-4bdb-bf19-430d83c45bad",
@@ -205,7 +205,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -848,
+        -816,
         256
       ],
       "id": "dcb3bc62-1c67-4f4a-90d7-f44373c9765f"
@@ -236,7 +236,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Bearer..."
+              "value": ""
             }
           ]
         },
@@ -292,7 +292,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        336,
+        752,
         256
       ],
       "id": "a57fdc8d-94ed-4fe9-9d62-1ae4b18b967f"
@@ -309,7 +309,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        1200,
+        1520,
         240
       ],
       "id": "c2e49ec3-6145-4d2f-9c3b-7e7d026c0241",
@@ -328,7 +328,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1392,
+        1712,
         240
       ],
       "id": "8d45aa15-f464-4a1f-aef4-c4eb75da605a"
@@ -341,7 +341,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1616,
+        1888,
         240
       ],
       "id": "3157fbea-f0d4-4202-90dc-7559a3a2a671"
@@ -358,7 +358,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        1792,
+        2048,
         240
       ],
       "id": "46155526-6c57-46f4-a30a-a35386053469",
@@ -377,7 +377,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1984,
+        2240,
         240
       ],
       "id": "601769d6-346d-4756-8802-b9bc408e5396"
@@ -392,7 +392,7 @@
       "type": "n8n-nodes-base.aggregate",
       "typeVersion": 1,
       "position": [
-        2192,
+        2448,
         240
       ],
       "id": "2f579c26-0bae-484f-bcf5-44935e1678be"
@@ -405,7 +405,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2384,
+        2640,
         240
       ],
       "id": "c3beff74-4ddf-4daa-bb4f-99e672f9d590"
@@ -420,7 +420,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        2576,
+        2832,
         240
       ],
       "id": "76a269c1-a122-4114-932f-7d4cb17c37dd"
@@ -470,7 +470,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Basic..."
+              "value": "=Basic RExBUkE3Nzk2OmlRbHFLU3U2SURHRmdNa1RSNjltc29wOA=="
             }
           ]
         },
@@ -485,7 +485,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        832,
+        1152,
         240
       ],
       "id": "89fd097e-4772-4498-88af-7ad60fbe7970"
@@ -498,7 +498,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1008,
+        1328,
         240
       ],
       "id": "9c9f3ee5-7a82-4013-86f9-d8db633aaa5b"
@@ -510,7 +510,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1200,
+        -1152,
         256
       ],
       "id": "48d1142b-df8e-4a35-871d-7c2e581ac682",
@@ -531,7 +531,7 @@
       "type": "@n8n/n8n-nodes-langchain.googleGemini",
       "typeVersion": 1,
       "position": [
-        144,
+        560,
         256
       ],
       "id": "9c8e127a-33b3-49ad-8498-c395d4c2a5f0",
@@ -540,6 +540,29 @@
         "googlePalmApi": {
           "id": "ToAVIZq9NjXB3ceO",
           "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE drafts\nSET\n  preview_image_visual_prompt = $1,\n  preview_image_alt           = $2,\n  updated_at                  = NOW()\nWHERE id = '{{ $json.draft_id }}'::uuid\nRETURNING \n  id, preview_image_visual_prompt, preview_image_alt, updated_at;",
+        "options": {
+          "queryReplacement": "=$1 = {{ $json.visual_prompt || null }},\n$2 = {{ $json.alt_text || null }},"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        144,
+        256
+      ],
+      "id": "93afcc5d-55d6-4a60-b0f5-c9c065f1ad6a",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "iGGwBSO1JFSNAWkP",
+          "name": "Postgres account"
         }
       }
     }
@@ -670,7 +693,7 @@
       "main": [
         [
           {
-            "node": "Generate an image",
+            "node": "Execute a SQL query",
             "type": "main",
             "index": 0
           }
@@ -819,13 +842,24 @@
           }
         ]
       ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Generate an image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "50d79867-6264-4d6a-ab94-a1e206e339e8",
+  "versionId": "e7cf02c2-5ca0-486b-a1fb-685972056b4c",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "b0c0d75725deff7f1cd3c888712a4250b86d4d553af2f9bc1d9171d793e1efdc"

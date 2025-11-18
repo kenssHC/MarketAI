@@ -1287,10 +1287,16 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('12:00');
 
-  const displayImageUrl = draft.preview_image_data_url || draft.featuredImageUrl || draft.featured_image_url || null;
-  const displayAltText = draft.preview_image_alt || draft.featuredImageAlt || draft.featured_image_alt || 'Imagen generada';
-  const displayPrompt = draft.preview_image_visual_prompt || draft.featuredImagePrompt || draft.featured_image_prompt || '';
-  const isPreviewImage = Boolean(draft.preview_image_data_url);
+  const previewDataUrl = draft.preview_image_data_url ?? draft.previewImageDataUrl ?? null;
+  const previewBase64 = draft.preview_image_base64 ?? draft.previewImageBase64 ?? null;
+  const previewFormat = draft.preview_image_format ?? draft.previewImageFormat ?? null;
+  const previewAlt = draft.preview_image_alt ?? draft.previewImageAlt ?? null;
+  const previewPrompt = draft.preview_image_visual_prompt ?? draft.previewImageVisualPrompt ?? null;
+
+  const displayImageUrl = previewDataUrl || draft.featuredImageUrl || draft.featured_image_url || null;
+  const displayAltText = previewAlt || draft.featuredImageAlt || draft.featured_image_alt || 'Imagen generada';
+  const displayPrompt = previewPrompt || draft.featuredImagePrompt || draft.featured_image_prompt || '';
+  const isPreviewImage = Boolean(previewDataUrl);
   const articlePrompt = useMemo(() => deriveArticlePrompt(draft, idea), [draft, idea]);
 
   useEffect(() => {
@@ -1346,11 +1352,11 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
   async function handleApprove() {
     try {
       setApproving(true);
-      const previewImage = draft.preview_image_base64 ? {
-        base64: draft.preview_image_base64,
-        format: draft.preview_image_format,
-        altText: draft.preview_image_alt,
-        visualPrompt: draft.preview_image_visual_prompt
+      const previewImage = previewBase64 ? {
+        base64: previewBase64,
+        format: previewFormat,
+        altText: previewAlt,
+        visualPrompt: previewPrompt
       } : null;
 
       await approveDraft(draft.id, {
@@ -1404,11 +1410,11 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
       setPublishing(true);
       await approveDraft(draft.id, {
         reviewer: 'editor',
-        previewImage: draft.preview_image_base64 ? {
-          base64: draft.preview_image_base64,
-          format: draft.preview_image_format,
-          altText: draft.preview_image_alt,
-          visualPrompt: draft.preview_image_visual_prompt
+        previewImage: previewBase64 ? {
+          base64: previewBase64,
+          format: previewFormat,
+          altText: previewAlt,
+          visualPrompt: previewPrompt
         } : undefined
       });
       const response = await publishDraftNow(draft.id);
@@ -1435,11 +1441,11 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
       setScheduling(true);
       await approveDraft(draft.id, {
         reviewer: 'editor',
-        previewImage: draft.preview_image_base64 ? {
-          base64: draft.preview_image_base64,
-          format: draft.preview_image_format,
-          altText: draft.preview_image_alt,
-          visualPrompt: draft.preview_image_visual_prompt
+        previewImage: previewBase64 ? {
+          base64: previewBase64,
+          format: previewFormat,
+          altText: previewAlt,
+          visualPrompt: previewPrompt
         } : undefined
       });
       await scheduleDraft(draft.id, {

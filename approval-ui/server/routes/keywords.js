@@ -33,8 +33,36 @@ function mapDraftRow(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     approvedAt: row.approved_at,
-    approvedBy: row.approved_by
+    approvedBy: row.approved_by,
+    previewImageDataUrl: row.preview_image_data_url,
+    previewImageBase64: row.preview_image_base64,
+    previewImageFormat: row.preview_image_format,
+    previewImageAlt: row.preview_image_alt,
+    previewImageVisualPrompt: row.preview_image_visual_prompt
   };
+}
+
+async function updateDraftPreviewFields(draftId, preview) {
+  const payload = preview || {};
+  await query(
+    `UPDATE drafts
+     SET
+       preview_image_data_url = $2,
+       preview_image_base64 = $3,
+       preview_image_format = $4,
+       preview_image_alt = $5,
+       preview_image_visual_prompt = $6,
+       updated_at = NOW()
+     WHERE id = $1`,
+    [
+      draftId,
+      payload.imageDataUrl || null,
+      payload.base64 || null,
+      payload.format || null,
+      payload.altText || null,
+      payload.visualPrompt || null
+    ]
+  );
 }
 
 const upload = multer({
@@ -218,7 +246,8 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     const rawRows = parseCsv(csvString, {
       skip_empty_lines: true,
-      trim: true
+      trim: true,
+      delimiter: [',', ';', '\t']
     });
 
     if (!rawRows.length) {
@@ -242,6 +271,14 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       return record;
     });
 
+    const sanitizeKeyword = (input) => {
+      if (!input) return '';
+      return String(input)
+        .replace(/\s+/g, ' ')
+        .split(/[,;|\t]/)[0]
+        .trim();
+    };
+
     const clusterName = req.body?.clusterName || req.body?.cluster_name || 'CSV Import';
     const projectName = req.body?.projectName || req.body?.project_name || null;
     const intent = req.body?.searchIntent || req.body?.search_intent || 'informacional';
@@ -253,11 +290,15 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         for (const column of keywordColumns) {
           const value = row[column];
           if (value) {
-            return String(value).trim();
+            const keyword = sanitizeKeyword(value);
+            if (keyword) {
+              return keyword;
+            }
           }
         }
         const firstValue = Object.values(row).find((value) => value);
-        return firstValue ? String(firstValue).trim() : null;
+        const keyword = firstValue ? sanitizeKeyword(firstValue) : null;
+        return keyword || null;
       })
       .filter(Boolean);
 
@@ -418,7 +459,12 @@ router.post('/:keywordId/generate', async (req, res) => {
         d.qa_passed,
         d.qa_report,
         d.created_at,
-        d.updated_at
+        d.updated_at,
+        d.preview_image_data_url,
+        d.preview_image_base64,
+        d.preview_image_format,
+        d.preview_image_alt,
+        d.preview_image_visual_prompt
       FROM drafts d
       WHERE d.idea_id = $1
       ORDER BY d.created_at DESC
@@ -440,10 +486,7 @@ router.post('/:keywordId/generate', async (req, res) => {
           draft_id: draft.id,
           limit: 1,
           force: true,
-          upload_to_wordpress: true,
-          wordpress_endpoint: config.wordpress?.mediaEndpoint,
-          wordpress_auth_header: config.wordpress?.authHeader,
-          wordpress_nonce: config.wordpress?.nonce
+          upload_to_wordpress: false
         });
 
         const firstDraft = imageResponse.drafts?.[0];
@@ -455,11 +498,21 @@ router.post('/:keywordId/generate', async (req, res) => {
             altText: firstDraft.alt_text || null,
             visualPrompt: firstDraft.visual_prompt || null
           };
+
+          await updateDraftPreviewFields(draft.id, imagePreview);
         }
 
-        // Refresh draft to get updated image URL
+        // Refrescar el draft para incluir datos de preview almacenados
         const imageRefresh = await query(
-          `SELECT featured_image_url, featured_image_alt, featured_image_prompt
+          `SELECT 
+             featured_image_url,
+             featured_image_alt,
+             featured_image_prompt,
+             preview_image_data_url,
+             preview_image_base64,
+             preview_image_format,
+             preview_image_alt,
+             preview_image_visual_prompt
            FROM drafts
            WHERE id = $1`,
           [draft.id]
@@ -469,7 +522,12 @@ router.post('/:keywordId/generate', async (req, res) => {
             ...draft,
             featuredImageUrl: imageRefresh.rows[0].featured_image_url,
             featuredImageAlt: imageRefresh.rows[0].featured_image_alt,
-            featuredImagePrompt: imageRefresh.rows[0].featured_image_prompt
+            featuredImagePrompt: imageRefresh.rows[0].featured_image_prompt,
+            previewImageDataUrl: imageRefresh.rows[0].preview_image_data_url,
+            previewImageBase64: imageRefresh.rows[0].preview_image_base64,
+            previewImageFormat: imageRefresh.rows[0].preview_image_format,
+            previewImageAlt: imageRefresh.rows[0].preview_image_alt,
+            previewImageVisualPrompt: imageRefresh.rows[0].preview_image_visual_prompt
           };
         }
       } catch (imageError) {
