@@ -130,6 +130,15 @@ export async function generateDraftImage(id, body = {}) {
   return handleResponse(response, 'No se pudo generar la imagen');
 }
 
+export async function regenerateDraftManual(id, body = {}) {
+  const response = await fetch(`/api/drafts/${id}/regenerate`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify(body)
+  });
+  return handleResponse(response, 'No se pudo regenerar el articulo con el prompt proporcionado');
+}
+
 export async function scheduleDraft(id, body = {}) {
   const response = await fetch(`/api/drafts/${id}/schedule`, {
     method: 'POST',

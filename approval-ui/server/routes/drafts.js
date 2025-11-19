@@ -2,6 +2,7 @@ import express from 'express';
 import { query, getClient } from '../db.js';
 import callN8nWebhook from '../services/n8n.js';
 import config from '../config.js';
+import { generateArticleFromPrompt } from '../services/articleGenerator.js';
 
 const router = express.Router();
 
@@ -526,6 +527,88 @@ router.post('/:id/image', async (req, res) => {
   } catch (error) {
     console.error('[api] failed to generate image', error);
     res.status(500).json({ message: 'Error al generar la imagen', details: error.message });
+  }
+});
+
+router.post('/:id/regenerate', async (req, res) => {
+  const { id } = req.params;
+  const prompt = (req.body?.prompt || '').toString().trim();
+
+  if (!prompt) {
+    return res.status(400).json({ message: 'Debes enviar el prompt para regenerar el articulo.' });
+  }
+
+  try {
+    const draftResult = await query('SELECT id, title FROM drafts WHERE id = $1', [id]);
+    if (!draftResult.rowCount) {
+      return res.status(404).json({ message: 'Draft no encontrado' });
+    }
+
+    const generation = await generateArticleFromPrompt({ prompt });
+
+    const client = await getClient();
+    try {
+      await client.query('BEGIN');
+      const updated = await client.query(
+        `UPDATE drafts
+         SET
+           title = $2,
+           meta_title = $3,
+           meta_description = $4,
+           tags = $5::text[],
+           content_markdown = $6,
+           word_count = $7,
+           preview_image_data_url = NULL,
+           preview_image_base64 = NULL,
+           preview_image_format = NULL,
+           preview_image_alt = NULL,
+           preview_image_visual_prompt = NULL,
+           updated_at = NOW()
+         WHERE id = $1
+         RETURNING *`,
+        [
+          id,
+          generation.title || draftResult.rows[0].title,
+          generation.metaTitle || generation.title || draftResult.rows[0].title,
+          generation.metaDescription || null,
+          Array.isArray(generation.tags) ? generation.tags : [],
+          generation.contentMarkdown,
+          generation.wordCount || 0
+        ]
+      );
+
+      const updatedDraftRow = updated.rows[0];
+
+      await registerJobLog(client, {
+        draft: updatedDraftRow,
+        reviewer: 'system',
+        action: 'manual_regenerate',
+        payload: {
+          prompt_length: prompt.length,
+          llm_tokens_used: generation.llmTokensUsed || null
+        }
+      });
+
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
+    const refreshed = await query(`${baseSelect} WHERE d.id = $1`, [id]);
+    res.json({
+      message: 'Draft regenerado con el prompt proporcionado.',
+      draft: refreshed.rowCount ? mapDraftRow(refreshed.rows[0]) : null,
+      metadata: {
+        wordCount: generation.wordCount || 0,
+        llmTokensUsed: generation.llmTokensUsed || null
+      }
+    });
+  } catch (error) {
+    console.error('[api] failed to regenerate draft manually', error);
+    res.status(500).json({ message: 'Error al regenerar el draft', details: error.message });
   }
 });
 

@@ -35,6 +35,12 @@ const config = {
     database: process.env.PGDATABASE || process.env.POSTGRES_DB || 'marketai_seo',
     ssl: process.env.PGSSL === 'true'
   },
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_APIKEY || null,
+    baseUrl: (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
+    model: process.env.OPENAI_MODEL || process.env.OPENAI_DEFAULT_MODEL || 'o4-mini',
+    maxOutputTokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 4000)
+  },
   n8n: {
     baseUrl:
       process.env.N8N_WEBHOOK_BASE

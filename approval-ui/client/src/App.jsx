@@ -19,7 +19,8 @@ import {
   saveSettings,
   triggerAutoSchedule,
   hasManualSchedules,
-  fetchDraftById
+  fetchDraftById,
+  regenerateDraftManual
 } from './api';
 import './app.css';
 import { deleteDraft as apiDeleteDraft } from './api';
@@ -1518,8 +1519,9 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
   }
 
   async function handleRegenerate() {
-    if (!keyword) {
-      onToast('No se puede regenerar este artículo porque no hay keyword asociada.', 'error');
+    const promptToUse = (articlePromptValue || '').trim();
+    if (!promptToUse) {
+      onToast('Debes escribir un prompt para regenerar el artículo.', 'error');
       return;
     }
     if (isDirty) {
@@ -1536,21 +1538,22 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
         return;
       }
     }
-    if (!keyword) {
-      onToast('No se puede regenerar: falta información de la keyword', 'error');
-      return;
-    }
-    
     try {
       setRegenerating(true);
-      const regenerated = await generateArticleFromKeyword(keyword.id, {
-        projectName: keyword.project_name,
-        articlePromptOverride: (articlePromptValue || '').trim() || undefined
+      await updateDraft(draft.id, {
+        articlePromptOverride: promptToUse || null
       });
+
+      const regenerated = await regenerateDraftManual(draft.id, {
+        prompt: promptToUse
+      });
+
       onToast('Contenido regenerado', 'success');
+
       const normalized = regenerated?.draft
         ? {
-            ...regenerated,
+            keyword: keyword || null,
+            idea: idea || null,
             draft: {
               ...regenerated.draft,
               preview_image_data_url: null,
@@ -1560,7 +1563,8 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
               preview_image_visual_prompt: null
             }
           }
-        : regenerated;
+        : { keyword: keyword || null, idea: idea || null, draft };
+
       onRegenerated(normalized);
       setIsDirty(false);
     } catch (error) {
@@ -1657,7 +1661,7 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
               <button
                 className="btn btn-secondary"
                 onClick={handleRegenerate}
-                disabled={regenerating || !keyword}
+                disabled={regenerating}
               >
                 {regenerating ? 'Generando...' : 'Generar nuevamente'}
               </button>
