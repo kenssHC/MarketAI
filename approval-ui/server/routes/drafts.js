@@ -30,6 +30,8 @@ SELECT
   d.preview_image_format,
   d.preview_image_alt,
   d.preview_image_visual_prompt,
+  d.article_prompt_override,
+  d.image_prompt_override,
   d.linkedin_copy,
   d.facebook_copy,
   d.created_at,
@@ -125,6 +127,8 @@ function mapDraftRow(row) {
     previewImageFormat: row.preview_image_format,
     previewImageAlt: row.preview_image_alt,
     previewImageVisualPrompt: row.preview_image_visual_prompt,
+    articlePromptOverride: row.article_prompt_override,
+    imagePromptOverride: row.image_prompt_override,
     linkedinCopy: row.linkedin_copy,
     facebookCopy: row.facebook_copy,
     createdAt: row.created_at,
@@ -222,6 +226,8 @@ router.put('/:id', async (req, res) => {
       ['featuredImageUrl', 'featured_image_url'],
       ['featuredImageAlt', 'featured_image_alt'],
       ['featuredImagePrompt', 'featured_image_prompt'],
+      ['articlePromptOverride', 'article_prompt_override'],
+      ['imagePromptOverride', 'image_prompt_override'],
       ['linkedinCopy', 'linkedin_copy'],
       ['facebookCopy', 'facebook_copy'],
       ['status', 'status'],
@@ -438,12 +444,30 @@ router.post('/:id/return', async (req, res) => {
 router.post('/:id/image', async (req, res) => {
   const { id } = req.params;
   try {
+    const customPrompt =
+      req.body?.preview_visual_prompt ||
+      req.body?.visualPrompt ||
+      req.body?.visual_prompt ||
+      req.body?.imagePrompt ||
+      null;
+
+    if (customPrompt) {
+      await query(
+        `UPDATE drafts
+         SET image_prompt_override = $2,
+             updated_at = NOW()
+         WHERE id = $1::uuid`,
+        [id, customPrompt.trim()]
+      );
+    }
+
     // Llamar al workflow con upload_to_wordpress=false para generar solo preview
     const workflowResponse = await callN8nWebhook('seo/imagenes/generar', {
       draft_id: id,
       limit: 1,
       force: true,
-      upload_to_wordpress: false
+      upload_to_wordpress: false,
+      preview_visual_prompt: customPrompt || undefined
     });
 
     console.log('WORKFLOW RESPONSE:', JSON.stringify(workflowResponse, null, 2));
@@ -479,7 +503,9 @@ router.post('/:id/image', async (req, res) => {
          preview_image_base64,
          preview_image_format,
          preview_image_alt,
-         preview_image_visual_prompt
+         preview_image_visual_prompt,
+         image_prompt_override,
+         article_prompt_override
        FROM drafts
        WHERE id = $1`,
       [id]

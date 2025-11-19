@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
 import {
   fetchKeywords,
@@ -15,7 +15,6 @@ import {
   generateDraftImage,
   scheduleDraft,
   publishDraftNow,
-  fetchScheduledPublications,
   fetchSettings,
   saveSettings,
   triggerAutoSchedule,
@@ -1293,19 +1292,45 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
   const previewAlt = draft.preview_image_alt ?? draft.previewImageAlt ?? null;
   const previewPrompt = draft.preview_image_visual_prompt ?? draft.previewImageVisualPrompt ?? null;
 
+  const derivedArticlePrompt = useMemo(() => deriveArticlePrompt(draft, idea), [draft, idea]);
+  const derivedImagePrompt = useMemo(() => {
+    return (
+      previewPrompt ||
+      draft.imagePromptOverride ||
+      draft.image_prompt_override ||
+      draft.featuredImagePrompt ||
+      draft.featured_image_prompt ||
+      ''
+    );
+  }, [draft, previewPrompt]);
+
+  const [articlePromptValue, setArticlePromptValue] = useState(
+    draft.articlePromptOverride ?? draft.article_prompt_override ?? derivedArticlePrompt ?? ''
+  );
+  const [imagePromptValue, setImagePromptValue] = useState(
+    draft.imagePromptOverride ?? draft.image_prompt_override ?? derivedImagePrompt ?? ''
+  );
+
   const displayImageUrl = previewDataUrl || draft.featuredImageUrl || draft.featured_image_url || null;
   const displayAltText = previewAlt || draft.featuredImageAlt || draft.featured_image_alt || 'Imagen generada';
-  const displayPrompt = previewPrompt || draft.featuredImagePrompt || draft.featured_image_prompt || '';
   const isPreviewImage = Boolean(previewDataUrl);
-  const articlePrompt = useMemo(() => deriveArticlePrompt(draft, idea), [draft, idea]);
 
   useEffect(() => {
     setContent(draft.contentMarkdown || draft.content_markdown || '');
     setMetaTitle(draft.metaTitle || draft.meta_title || '');
     setMetaDescription(draft.metaDescription || draft.meta_description || '');
     setTags((draft.tags || []).join(', '));
+    setArticlePromptValue(draft.articlePromptOverride ?? draft.article_prompt_override ?? derivedArticlePrompt ?? '');
+    setImagePromptValue(
+      draft.imagePromptOverride ??
+        draft.image_prompt_override ??
+        previewPrompt ??
+        draft.featuredImagePrompt ??
+        draft.featured_image_prompt ??
+        ''
+    );
     setIsDirty(false);
-  }, [draft]);
+  }, [draft, derivedArticlePrompt, previewPrompt]);
 
   async function handleSave(options = {}) {
     const { silent = false, force = false } = options;
@@ -1322,7 +1347,9 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
         metaTitle,
         metaDescription,
         contentMarkdown: content,
-        tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+        tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+        articlePromptOverride: (articlePromptValue || '').trim() || null,
+        imagePromptOverride: (imagePromptValue || '').trim() || null
       });
       if (!silent) {
         onToast('Borrador actualizado', 'success');
@@ -1330,11 +1357,33 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
       const nextDraft = response?.draft
         ? {
             ...response.draft,
-            preview_image_data_url: draft.preview_image_data_url || null,
-            preview_image_base64: draft.preview_image_base64 || null,
-            preview_image_format: draft.preview_image_format || null,
-            preview_image_alt: draft.preview_image_alt || null,
-            preview_image_visual_prompt: draft.preview_image_visual_prompt || null
+            preview_image_data_url:
+              response.draft.previewImageDataUrl ??
+              draft.preview_image_data_url ??
+              draft.previewImageDataUrl ??
+              null,
+            preview_image_base64:
+              response.draft.previewImageBase64 ??
+              draft.preview_image_base64 ??
+              draft.previewImageBase64 ??
+              null,
+            preview_image_format:
+              response.draft.previewImageFormat ??
+              draft.preview_image_format ??
+              draft.previewImageFormat ??
+              null,
+            preview_image_alt:
+              response.draft.previewImageAlt ??
+              draft.preview_image_alt ??
+              draft.previewImageAlt ??
+              null,
+            preview_image_visual_prompt:
+              response.draft.previewImageVisualPrompt ??
+              draft.preview_image_visual_prompt ??
+              draft.previewImageVisualPrompt ??
+              null,
+            article_prompt_override: (articlePromptValue || '').trim() || null,
+            image_prompt_override: (imagePromptValue || '').trim() || null
           }
         : draft;
       onSaved(nextDraft);
@@ -1356,7 +1405,7 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
         base64: previewBase64,
         format: previewFormat,
         altText: previewAlt,
-        visualPrompt: previewPrompt
+        visualPrompt: (imagePromptValue || previewPrompt || '').trim() || null
       } : null;
 
       await approveDraft(draft.id, {
@@ -1376,7 +1425,10 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
   async function handleGenerateImage() {
     try {
       setImageGenerating(true);
-      const response = await generateDraftImage(draft.id);
+      const normalizedPrompt = (imagePromptValue || previewPrompt || '').trim();
+      const response = await generateDraftImage(draft.id, {
+        preview_visual_prompt: normalizedPrompt || undefined
+      });
       console.log('RESPONSE COMPLETA:', response);
       const preview = response.preview || {};
       console.log('PREVIEW:', preview);
@@ -1389,9 +1441,11 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
         preview_image_base64: preview.base64 || null,
         preview_image_format: preview.format || null,
         preview_image_alt: preview.altText || null,
-        preview_image_visual_prompt: preview.visualPrompt || null
+        preview_image_visual_prompt: preview.visualPrompt || null,
+        image_prompt_override: normalizedPrompt || draft.image_prompt_override || null
       };
       onSaved(updated);
+      setImagePromptValue(preview.visualPrompt || normalizedPrompt || '');
       onToast('Preview de imagen generada', 'success');
     } catch (error) {
       console.error(error);
@@ -1414,7 +1468,7 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
           base64: previewBase64,
           format: previewFormat,
           altText: previewAlt,
-          visualPrompt: previewPrompt
+          visualPrompt: (imagePromptValue || previewPrompt || '').trim() || null
         } : undefined
       });
       const response = await publishDraftNow(draft.id);
@@ -1445,7 +1499,7 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
           base64: previewBase64,
           format: previewFormat,
           altText: previewAlt,
-          visualPrompt: previewPrompt
+          visualPrompt: (imagePromptValue || previewPrompt || '').trim() || null
         } : undefined
       });
       await scheduleDraft(draft.id, {
@@ -1490,7 +1544,8 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
     try {
       setRegenerating(true);
       const regenerated = await generateArticleFromKeyword(keyword.id, {
-        projectName: keyword.project_name
+        projectName: keyword.project_name,
+        articlePromptOverride: (articlePromptValue || '').trim() || undefined
       });
       onToast('Contenido regenerado', 'success');
       const normalized = regenerated?.draft
@@ -1591,8 +1646,11 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
               <label>Prompt de Artículo</label>
               <textarea
                 className="small-textarea"
-                value={articlePrompt}
-                readOnly
+                value={articlePromptValue}
+                onChange={(event) => {
+                  setArticlePromptValue(event.target.value);
+                  setIsDirty(true);
+                }}
               />
             </div>
             <div className="article-prompt-actions">
@@ -1662,8 +1720,12 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
               <label>Prompt de imagen</label>
               <textarea
                 className="small-textarea"
-                value={displayPrompt || 'Aún no se genera una imagen para este artículo.'}
-                readOnly
+                value={imagePromptValue}
+                placeholder="Aún no se genera una imagen para este artículo."
+                onChange={(event) => {
+                  setImagePromptValue(event.target.value);
+                  setIsDirty(true);
+                }}
               />
               
             </div>

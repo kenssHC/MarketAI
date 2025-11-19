@@ -28,6 +28,8 @@ function mapDraftRow(row) {
     featuredImageUrl: row.featured_image_url,
     featuredImageAlt: row.featured_image_alt,
     featuredImagePrompt: row.featured_image_prompt,
+    articlePromptOverride: row.article_prompt_override,
+    imagePromptOverride: row.image_prompt_override,
     linkedinCopy: row.linkedin_copy,
     facebookCopy: row.facebook_copy,
     createdAt: row.created_at,
@@ -318,6 +320,7 @@ router.post('/:keywordId/generate', async (req, res) => {
   const { keywordId } = req.params;
   const projectOverride = req.body?.projectName || req.body?.project_name || null;
   const generateImage = req.body?.generateImage || false;
+  const articlePromptOverride = req.body?.articlePromptOverride || req.body?.article_prompt_override || null;
 
   try {
     const keywordResult = await query(
@@ -442,7 +445,8 @@ router.post('/:keywordId/generate', async (req, res) => {
 
     await callN8nWebhook('seo/redaccion/simple', {
       idea_id: idea.id,
-      limit: 1
+      limit: 1,
+      article_prompt_override: articlePromptOverride || undefined
     });
 
     const draftResult = await query(
@@ -464,7 +468,9 @@ router.post('/:keywordId/generate', async (req, res) => {
         d.preview_image_base64,
         d.preview_image_format,
         d.preview_image_alt,
-        d.preview_image_visual_prompt
+        d.preview_image_visual_prompt,
+        d.article_prompt_override,
+        d.image_prompt_override
       FROM drafts d
       WHERE d.idea_id = $1
       ORDER BY d.created_at DESC
@@ -477,6 +483,20 @@ router.post('/:keywordId/generate', async (req, res) => {
     }
 
     let draft = mapDraftRow(draftResult.rows[0]);
+
+    if (articlePromptOverride) {
+      await query(
+        `UPDATE drafts
+         SET article_prompt_override = $2,
+             updated_at = NOW()
+         WHERE id = $1::uuid`,
+        [draft.id, articlePromptOverride]
+      );
+      draft = {
+        ...draft,
+        articlePromptOverride
+      };
+    }
 
     // Generate image if requested
     let imagePreview = null;

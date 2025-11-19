@@ -272,7 +272,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const idx = $itemIndex;\nconst context = $items('Preparar Contexto Imagen1', 0)[idx]?.json || {};\n\nconst textFromOutput = ($json.output_text || []).join('\\n').trim();\n\nconst textFromContent = ($json.output || [])\n  .flatMap((entry) => (entry.content || []))\n  .map((part) => (part.text || '').trim())\n  .filter(Boolean)\n  .join('\\n')\n  .trim();\n\nconst rawOutput = textFromOutput || textFromContent;\n\nif (!rawOutput) {\n  const status = $json.status || 'desconocido';\n  const reason = $json.incomplete_details?.reason || 'sin motivo informado';\n  throw new Error(`OpenAI no devolvio texto. Estado: ${status}, motivo: ${reason}.`);\n}\n\nlet parsed;\ntry {\n  parsed = JSON.parse(rawOutput);\n} catch (_) {\n  parsed = { visual_prompt: rawOutput };\n}\n\nconst visualPrompt = (parsed.visual_prompt || parsed.prompt || rawOutput).toString().trim();\nconst altTextCandidate = (parsed.alt_text || parsed.altText || '').toString().trim();\nconst fallbackAlt = context.meta_description ? context.meta_description.slice(0, 140)\n  : `Imagen ilustrativa de ${context.article_title || context.idea_title || 'articulo'}`;\n\nreturn [{\n  json: {\n    ...context,\n    llm_raw_output: rawOutput,\n    visual_prompt: visualPrompt,\n    alt_text: altTextCandidate || fallbackAlt,\n    llm_tokens_used: $json.usage?.total_tokens || $json.usage?.totalTokens || null\n  }\n}];"
+        "jsCode": "const idx = $itemIndex;\nconst context = $items('Preparar Contexto Imagen1', 0)[idx]?.json || {};\n\nconst textFromOutput = ($json.output_text || []).join('\\n').trim();\n\nconst textFromContent = ($json.output || [])\n  .flatMap((entry) => (entry.content || []))\n  .map((part) => (part.text || '').trim())\n  .filter(Boolean)\n  .join('\\n')\n  .trim();\n\nconst rawOutput = textFromOutput || textFromContent;\n\nif (!rawOutput && !context.provided_visual_prompt) {\n  const status = $json.status || 'desconocido';\n  const reason = $json.incomplete_details?.reason || 'sin motivo informado';\n  throw new Error(`OpenAI no devolvio texto. Estado: ${status}, motivo: ${reason}.`);\n}\n\nlet parsed;\ntry {\n  parsed = rawOutput ? JSON.parse(rawOutput) : {};\n} catch (_) {\n  parsed = { visual_prompt: rawOutput };\n}\n\nconst llmPrompt = (parsed.visual_prompt || parsed.prompt || rawOutput || '').toString().trim();\nconst providedPrompt = (context.provided_visual_prompt || '').toString().trim();\nconst finalPrompt = providedPrompt || llmPrompt;\n\nconst providedAlt = (context.provided_alt_text || '').toString().trim();\nconst altTextCandidate = (parsed.alt_text || parsed.altText || '').toString().trim();\nconst fallbackAlt = context.meta_description ? context.meta_description.slice(0, 140)\n  : `Imagen ilustrativa de ${context.article_title || context.idea_title || 'articulo'}`;\nconst finalAlt = providedAlt || altTextCandidate || fallbackAlt;\n\nreturn [{\n  json: {\n    ...context,\n    llm_raw_output: providedPrompt || rawOutput,\n    visual_prompt: finalPrompt,\n    alt_text: finalAlt,\n    llm_tokens_used: $json.usage?.total_tokens || $json.usage?.totalTokens || null\n  }\n}];"
       },
       "name": "Parsear Prompt Visual1",
       "type": "n8n-nodes-base.code",
@@ -470,7 +470,7 @@
             },
             {
               "name": "Authorization",
-              "value": "=Basic RExBUkE3Nzk2OmlRbHFLU3U2SURHRmdNa1RSNjltc29wOA=="
+              "value": ""
             }
           ]
         },
