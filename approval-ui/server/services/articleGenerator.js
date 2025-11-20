@@ -1,3 +1,4 @@
+import { marked } from 'marked';
 import config from '../config.js';
 
 function extractTextFromResponse(data) {
@@ -104,6 +105,27 @@ function calculateWordCount(content) {
   return text ? text.split(/\s+/).filter(Boolean).length : 0;
 }
 
+export function markdownToHtml(markdown) {
+  if (!markdown) return '';
+  return marked
+    .parse(markdown, {
+      mangle: false,
+      headerIds: false
+    })
+    .trim();
+}
+
+export function ensureContentHtmlValue({ contentHtml, contentMarkdown }) {
+  if (contentHtml && contentHtml.trim()) {
+    return contentHtml;
+  }
+  const markdown = (contentMarkdown || '').trim();
+  if (!markdown) {
+    return null;
+  }
+  return markdownToHtml(markdown);
+}
+
 export async function generateArticleFromPrompt({ prompt }) {
   if (!prompt || !prompt.trim()) {
     throw new Error('Debes enviar un prompt para regenerar el articulo.');
@@ -156,10 +178,12 @@ export async function generateArticleFromPrompt({ prompt }) {
 
   const contentMarkdown = content.trim() || rawText.trim();
   const wordCount = calculateWordCount(contentMarkdown);
+  const contentHtml = markdownToHtml(contentMarkdown);
 
   return {
     rawMarkdown: rawText,
     contentMarkdown,
+    contentHtml,
     title: mapped.title || metaTitle,
     metaTitle,
     metaDescription,

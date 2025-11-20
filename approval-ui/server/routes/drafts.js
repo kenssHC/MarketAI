@@ -2,7 +2,7 @@ import express from 'express';
 import { query, getClient } from '../db.js';
 import callN8nWebhook from '../services/n8n.js';
 import config from '../config.js';
-import { generateArticleFromPrompt } from '../services/articleGenerator.js';
+import { generateArticleFromPrompt, ensureContentHtmlValue } from '../services/articleGenerator.js';
 
 const router = express.Router();
 
@@ -51,7 +51,8 @@ SELECT
   sp.scheduled_date,
   sp.scheduled_time,
   sp.scheduled_datetime,
-  sp.status AS schedule_status
+  sp.status AS schedule_status,
+  sp.scheduled_automatically
 FROM drafts d
 LEFT JOIN ideas i ON i.id = d.idea_id
 LEFT JOIN keywords k ON k.id = d.keyword_cluster_id
@@ -149,6 +150,7 @@ function mapDraftRow(row) {
     scheduledTime: row.scheduled_time,
     scheduledDatetime: row.scheduled_datetime,
     scheduleStatus: row.schedule_status,
+    scheduledAutomatically: row.scheduled_automatically,
     previewImageDataUrl: row.preview_image_data_url,
     previewImageBase64: row.preview_image_base64,
     previewImageFormat: row.preview_image_format,
@@ -557,7 +559,8 @@ router.post('/:id/regenerate', async (req, res) => {
            meta_description = $4,
            tags = $5::text[],
            content_markdown = $6,
-           word_count = $7,
+           content_html = $7,
+           word_count = $8,
            preview_image_data_url = NULL,
            preview_image_base64 = NULL,
            preview_image_format = NULL,
@@ -573,6 +576,7 @@ router.post('/:id/regenerate', async (req, res) => {
           generation.metaDescription || null,
           Array.isArray(generation.tags) ? generation.tags : [],
           generation.contentMarkdown,
+          generation.contentHtml,
           generation.wordCount || 0
         ]
       );
@@ -628,18 +632,25 @@ router.post('/:id/schedule', async (req, res) => {
       return res.status(400).json({ message: 'La fecha debe ser futura' });
     }
 
-    // Verificar que el draft existe y está aprobado
-    const draftCheck = await query(
-      'SELECT id, status FROM drafts WHERE id = $1',
-      [id]
-    );
-
+    const draftCheck = await query('SELECT id, content_html, content_markdown FROM drafts WHERE id = $1', [id]);
     if (!draftCheck.rowCount) {
       return res.status(404).json({ message: 'Draft no encontrado' });
     }
-
-    if (draftCheck.rows[0].status !== 'approved') {
-      return res.status(400).json({ message: 'El draft debe estar aprobado para programar' });
+    const draftRow = draftCheck.rows[0];
+    const ensuredHtml = ensureContentHtmlValue({
+      contentHtml: draftRow.content_html,
+      contentMarkdown: draftRow.content_markdown
+    });
+    if (!ensuredHtml) {
+      return res.status(400).json({
+        message: 'El draft no tiene contenido HTML. Genera o edita el artículo antes de programarlo.'
+      });
+    }
+    if (!draftRow.content_html) {
+      await query(
+        `UPDATE drafts SET content_html = $2, updated_at = NOW() WHERE id = $1`,
+        [id, ensuredHtml]
+      );
     }
 
     // Verificar si ya tiene una programación
@@ -648,21 +659,47 @@ router.post('/:id/schedule', async (req, res) => {
       [id, 'pending']
     );
 
+    let scheduleRow;
+    let message = 'Publicación programada exitosamente';
+
     if (existingSchedule.rowCount > 0) {
-      return res.status(400).json({ message: 'Este draft ya tiene una publicación programada' });
+      const scheduleId = existingSchedule.rows[0].id;
+      const updateResult = await query(
+        `UPDATE scheduled_publications
+         SET
+           scheduled_date = $2,
+           scheduled_time = $3,
+           status = 'pending',
+           scheduled_automatically = false,
+           cancelled_at = NULL,
+           cancelled_by = NULL,
+           cancellation_reason = NULL,
+           published_at = NULL,
+           wordpress_post_id = NULL,
+           wordpress_post_url = NULL,
+           wordpress_status = NULL,
+           attempts = 0,
+           last_error = NULL,
+           last_attempt_at = NULL
+         WHERE id = $1
+         RETURNING id, draft_id, scheduled_date, scheduled_time, scheduled_datetime, status, scheduled_automatically, created_at, updated_at`,
+        [scheduleId, scheduled_date, scheduled_time || '12:00:00']
+      );
+      scheduleRow = updateResult.rows[0];
+      message = 'Publicación reprogramada exitosamente';
+    } else {
+      const insertResult = await query(
+        `INSERT INTO scheduled_publications (draft_id, scheduled_date, scheduled_time, created_by, status, scheduled_automatically)
+         VALUES ($1, $2, $3, $4, 'pending', false)
+         RETURNING id, draft_id, scheduled_date, scheduled_time, scheduled_datetime, status, scheduled_automatically, created_at`,
+        [id, scheduled_date, scheduled_time || '12:00:00', created_by || 'system']
+      );
+      scheduleRow = insertResult.rows[0];
     }
 
-    // Crear programación
-    const result = await query(
-  `INSERT INTO scheduled_publications (draft_id, scheduled_date, scheduled_time, created_by, status)
-       VALUES ($1, $2, $3, $4, 'pending')
-       RETURNING id, draft_id, scheduled_date, scheduled_time, status, created_at`,
-  [id, scheduled_date, scheduled_time || '12:00:00', created_by || 'system']
-    );
-
     res.json({
-      message: 'Publicación programada exitosamente',
-      schedule: result.rows[0]
+      message,
+      schedule: scheduleRow
     });
   } catch (error) {
     console.error('[api] failed to schedule publication', error);

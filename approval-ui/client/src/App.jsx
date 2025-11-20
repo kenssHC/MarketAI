@@ -25,6 +25,9 @@ import {
 import './app.css';
 import { deleteDraft as apiDeleteDraft } from './api';
 
+const ENABLE_SCHEDULER_LOGS =
+  typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_ENABLE_SCHEDULER_LOGS === 'true';
+
 const NAV_ITEMS = [
   //{ id: 'marketing', label: 'Marketing', disabled: true },
   //{ id: 'campaigns', label: 'Campanas', disabled: true },
@@ -125,6 +128,53 @@ const deriveArticlePrompt = (draft, idea) => {
     draft?.wordCount ||
     600;
   return buildArticlePrompt(ideaTitle, estimate);
+};
+
+const extractMetaFromContent = (markdown = '') => {
+  if (!markdown) {
+    return {};
+  }
+
+  const head = markdown.split('\n').slice(0, 20).join('\n');
+  const descriptionMatch = head.match(/Meta Description?:?\s*["“”]?([^"\n]+)["“”]?/i);
+  const tagsMatch = head.match(/Tags?:?\s*["“”]?([^"\n]+)["“”]?/i);
+
+  const extracted = {};
+
+  if (descriptionMatch) {
+    extracted.metaDescription = descriptionMatch[1].trim();
+  }
+
+  if (tagsMatch) {
+    let tagsText = tagsMatch[1].trim();
+    if (/[;,|]/.test(tagsText)) {
+      tagsText = tagsText
+        .split(/[,;|]/)
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .join(', ');
+    }
+    extracted.tags = tagsText;
+  }
+
+  return extracted;
+};
+
+const isMetaFieldEmpty = (value) => {
+  if (value === undefined || value === null) {
+    return true;
+  }
+
+  const trimmed = String(value).trim();
+  if (!trimmed) {
+    return true;
+  }
+
+  if (/^-{2,}$/.test(trimmed)) {
+    return true;
+  }
+
+  return false;
 };
 
 function Toast({ toast }) {
@@ -1284,8 +1334,21 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
   
   // Estados de programación
   const [showScheduleForm, setShowScheduleForm] = useState(false);
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [scheduledTime, setScheduledTime] = useState('12:00');
+  const scheduledDatetimeValue = draft.scheduledDatetime ?? draft.scheduled_datetime ?? null;
+  const scheduledStatusValue = draft.scheduleStatus ?? draft.schedule_status ?? null;
+  const initialScheduledDate =
+    draft.scheduledDate ??
+    draft.scheduled_date ??
+    (scheduledDatetimeValue ? new Date(scheduledDatetimeValue).toISOString().split('T')[0] : '');
+  const initialScheduledTime =
+    draft.scheduledTime ??
+    draft.scheduled_time ??
+    (scheduledDatetimeValue ? new Date(scheduledDatetimeValue).toISOString().slice(11, 16) : '12:00');
+  const hasPendingSchedule = scheduledStatusValue === 'pending' && Boolean(scheduledDatetimeValue || initialScheduledDate);
+  const scheduleButtonLabel = hasPendingSchedule ? 'Reprogramar fecha' : 'Programar fecha';
+
+  const [scheduledDate, setScheduledDate] = useState(initialScheduledDate || '');
+  const [scheduledTime, setScheduledTime] = useState(initialScheduledTime || '12:00');
 
   const previewDataUrl = draft.preview_image_data_url ?? draft.previewImageDataUrl ?? null;
   const previewBase64 = draft.preview_image_base64 ?? draft.previewImageBase64 ?? null;
@@ -1330,8 +1393,38 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
         draft.featured_image_prompt ??
         ''
     );
+    setScheduledDate(initialScheduledDate || '');
+    setScheduledTime(initialScheduledTime || '12:00');
     setIsDirty(false);
-  }, [draft, derivedArticlePrompt, previewPrompt]);
+  }, [draft, derivedArticlePrompt, previewPrompt, initialScheduledDate, initialScheduledTime]);
+
+  useEffect(() => {
+    if (!content) return;
+
+    const needsMetaDescription = isMetaFieldEmpty(metaDescription);
+    const needsTags = isMetaFieldEmpty(tags);
+
+    if (!needsMetaDescription && !needsTags) {
+      return;
+    }
+
+    const { metaDescription: extractedDescription, tags: extractedTags } = extractMetaFromContent(content);
+    let updated = false;
+
+    if (needsMetaDescription && extractedDescription) {
+      setMetaDescription(extractedDescription);
+      updated = true;
+    }
+
+    if (needsTags && extractedTags) {
+      setTags(extractedTags);
+      updated = true;
+    }
+
+    if (updated) {
+      setIsDirty(true);
+    }
+  }, [content, metaDescription, tags]);
 
   async function handleSave(options = {}) {
     const { silent = false, force = false } = options;
@@ -1488,27 +1581,56 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
       onToast('Selecciona una fecha', 'error');
       return;
     }
+    const normalizedTime = scheduledTime || '12:00';
+    const selectedDateTime = new Date(`${scheduledDate}T${normalizedTime}`);
+    if (selectedDateTime <= new Date()) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Fecha inválida',
+        text: 'Selecciona una fecha y hora futura.'
+      });
+      return;
+    }
+    if (hasPendingSchedule) {
+      const confirmation = await Swal.fire({
+        icon: 'warning',
+        title: 'Reprogramar publicación',
+        text: 'Esto reemplazará la fecha programada anteriormente. ¿Deseas continuar?',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, reprogramar',
+        cancelButtonText: 'Cancelar',
+        focusCancel: true
+      });
+      if (!confirmation.isConfirmed) {
+        return;
+      }
+    }
     if (isDirty) {
       const saved = await handleSave({ silent: true });
       if (!saved) return;
     }
     try {
       setScheduling(true);
-      await approveDraft(draft.id, {
-        reviewer: 'editor',
-        previewImage: previewBase64 ? {
-          base64: previewBase64,
-          format: previewFormat,
-          altText: previewAlt,
-          visualPrompt: (imagePromptValue || previewPrompt || '').trim() || null
-        } : undefined
-      });
-      await scheduleDraft(draft.id, {
+      const response = await scheduleDraft(draft.id, {
         scheduled_date: scheduledDate,
-        scheduled_time: scheduledTime,
+        scheduled_time: normalizedTime,
         created_by: 'editor'
       });
-      onToast(`Programado para ${scheduledDate} ${scheduledTime}`, 'success');
+
+      const schedule = response?.schedule || {};
+      const nextDraft = {
+        ...draft,
+        scheduledDate: schedule.scheduled_date || schedule.scheduledDate || scheduledDate,
+        scheduledTime: schedule.scheduled_time || schedule.scheduledTime || normalizedTime,
+        scheduledDatetime:
+          schedule.scheduled_datetime || schedule.scheduledDatetime || `${scheduledDate}T${normalizedTime}`,
+        scheduleStatus: schedule.status || 'pending'
+      };
+
+      setScheduledDate(nextDraft.scheduledDate || scheduledDate);
+      setScheduledTime(nextDraft.scheduledTime || normalizedTime);
+      onSaved(nextDraft);
+      onToast(response?.message || `${hasPendingSchedule ? 'Reprogramado' : 'Programado'} para ${scheduledDate} ${normalizedTime}`, 'success');
       onClose();
     } catch (error) {
       console.error(error);
@@ -1758,7 +1880,7 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
               onClick={() => setShowScheduleForm(!showScheduleForm)}
               disabled={scheduling}
             >
-              Programar
+              {scheduleButtonLabel}
             </button>
             {showScheduleForm && (
               <div className="schedule-inline-form">
@@ -1813,6 +1935,53 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [keywordsRefreshKey, setKeywordsRefreshKey] = useState(0);
   const [draftPreviewCache, setDraftPreviewCache] = useState({});
+
+  useEffect(() => {
+    if (!ENABLE_SCHEDULER_LOGS) {
+      return undefined;
+    }
+    let isMounted = true;
+    let lastTimestamp = null;
+
+    const fetchLogs = async () => {
+      try {
+        const response = await fetch('/api/scheduler/logs');
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!isMounted) return;
+        const logs = Array.isArray(data?.logs) ? data.logs : [];
+        let entries = logs;
+        if (lastTimestamp) {
+          const lastTime = new Date(lastTimestamp).getTime();
+          entries = logs.filter((log) => new Date(log.timestamp).getTime() > lastTime);
+        }
+        if (entries.length) {
+          entries.forEach((entry) => {
+            const prefix = `[Scheduler][${(entry.level || 'info').toUpperCase()}] ${entry.message}`;
+            const details = entry.meta && Object.keys(entry.meta).length ? entry.meta : undefined;
+            if (entry.level === 'error') {
+              console.error(prefix, details);
+            } else {
+              console.log(prefix, details);
+            }
+          });
+          lastTimestamp = entries[entries.length - 1].timestamp;
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.warn('[scheduler] log fetch error', error);
+        }
+      }
+    };
+
+    fetchLogs();
+    const intervalId = setInterval(fetchLogs, 10000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, []);
 
   const updatePreviewCache = useCallback((draftId, preview) => {
     if (!draftId) return;

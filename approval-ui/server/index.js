@@ -7,7 +7,7 @@ import draftsRouter from './routes/drafts.js';
 import keywordsRouter from './routes/keywords.js';
 import settingsRouter from './routes/settings.js';
 import { query } from './db.js';
-import { startScheduler } from './services/scheduler.js';
+import { startScheduler, getSchedulerLogs } from './services/scheduler.js';
 
 const app = express();
 
@@ -27,6 +27,10 @@ app.get('/api/health', async (_req, res) => {
 app.use('/api/keywords', keywordsRouter);
 app.use('/api/drafts', draftsRouter);
 app.use('/api/settings', settingsRouter);
+
+app.get('/api/scheduler/logs', (req, res) => {
+  res.json({ logs: getSchedulerLogs() });
+});
 
 if (fs.existsSync(config.frontendBuildDir)) {
   app.use(express.static(config.frontendBuildDir));

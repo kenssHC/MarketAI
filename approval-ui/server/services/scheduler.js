@@ -1,6 +1,29 @@
 ﻿import { query } from '../db.js';
 import callN8nWebhook from './n8n.js';
 import config from '../config.js';
+import { publishScheduledDraft } from './publisher.js';
+
+const schedulerLogs = [];
+const MAX_LOGS = 200;
+
+function pushLog(level, message, meta = {}) {
+  const entry = {
+    level,
+    message,
+    meta,
+    timestamp: new Date().toISOString()
+  };
+  schedulerLogs.push(entry);
+  if (schedulerLogs.length > MAX_LOGS) {
+    schedulerLogs.shift();
+  }
+  const logFn = level === 'error' ? console.error : console.log;
+  logFn(`[scheduler][${level}] ${message}`, Object.keys(meta).length ? meta : '');
+}
+
+export function getSchedulerLogs() {
+  return [...schedulerLogs];
+}
 
 export async function autoScheduleApprovedDrafts(options = {}) {
   const { forceManualReset = false } = options;
@@ -29,9 +52,7 @@ export async function autoScheduleApprovedDrafts(options = {}) {
     };
 
     // Cancel pending schedules (automatic always, manual only if forced)
-    const cancelParams = [forceManualReset];
-    await query(
-      `
+    await query(`
         UPDATE scheduled_publications
         SET status = 'cancelled',
             cancelled_at = NOW(),
@@ -40,13 +61,8 @@ export async function autoScheduleApprovedDrafts(options = {}) {
             updated_at = NOW()
         WHERE status = 'pending'
           AND scheduled_datetime > NOW()
-          AND (
-            scheduled_automatically = true
-            OR ($1 = true AND scheduled_automatically = false)
-          )
-      `,
-      cancelParams
-    );
+          AND scheduled_automatically = true
+      `);
     
     const draftsResult = await query(`
       SELECT 
@@ -70,7 +86,7 @@ export async function autoScheduleApprovedDrafts(options = {}) {
       return;
     }
 
-    console.log(`[auto-scheduler] Found ${draftsResult.rowCount} drafts to schedule`);
+    pushLog('info', `[auto-scheduler] Found ${draftsResult.rowCount} drafts to schedule`);
 
     // Get next available publication slots
     const rawPublishDays = Array.isArray(settings.publish_days)
@@ -117,7 +133,7 @@ export async function autoScheduleApprovedDrafts(options = {}) {
     while (!publishDays.includes(currentDate.getDay())) {
       currentDate.setDate(currentDate.getDate() + 1);
     }
-    console.log(`[auto-scheduler] Start date: ${currentDate.toISOString().split('T')[0]} 12:00`);
+    pushLog('info', `[auto-scheduler] Start date: ${currentDate.toISOString().split('T')[0]} 12:00`);
 
     for (const draft of draftsResult.rows) {
       let scheduled = false;
@@ -150,12 +166,12 @@ export async function autoScheduleApprovedDrafts(options = {}) {
                 cancelled_at = NULL,
                 cancellation_reason = NULL,
                 cancelled_by = NULL
-              WHERE scheduled_publications.scheduled_automatically = true OR scheduled_publications.status <> 'pending'
+              WHERE scheduled_publications.scheduled_automatically = true
             `, [draft.id, dateKey, time]);
 
             scheduledCounts[dateKey] = count + 1;
             scheduled = true;
-            console.log(`[auto-scheduler] Scheduled "${draft.title}" for ${dateKey} ${time}`);
+            pushLog('info', `[auto-scheduler] Scheduled "${draft.title}" for ${dateKey} ${time}`);
           }
         }
 
@@ -166,10 +182,10 @@ export async function autoScheduleApprovedDrafts(options = {}) {
       }
     }
 
-    console.log(`[auto-scheduler] Scheduling completed. Total slots used: ${Object.keys(scheduledCounts).length} days`);
+    pushLog('info', `[auto-scheduler] Scheduling completed. Total slots used: ${Object.keys(scheduledCounts).length} days`);
 
   } catch (error) {
-    console.error('[auto-scheduler] Error:', error);
+    pushLog('error', '[auto-scheduler] Error', { error: error.message });
   }
 }
 
@@ -180,6 +196,9 @@ export async function checkAndPublishScheduled() {
       SELECT 
         sp.id,
         sp.draft_id,
+        sp.scheduled_date,
+        sp.scheduled_time,
+        sp.scheduled_datetime,
         sp.attempts,
         d.title
       FROM scheduled_publications sp
@@ -194,11 +213,11 @@ export async function checkAndPublishScheduled() {
       return;
     }
 
-    console.log(`[scheduler] Encontradas ${result.rowCount} publicaciones para procesar`);
+    pushLog('info', `[scheduler] Encontradas ${result.rowCount} publicaciones para procesar`);
 
     for (const pub of result.rows) {
       try {
-        console.log(`[scheduler] Publicando: ${pub.title} (draft_id: ${pub.draft_id})`);
+        pushLog('info', `[scheduler] Publicando: ${pub.title} (draft_id: ${pub.draft_id})`);
         
         // Actualizar intento
         await query(
@@ -209,48 +228,10 @@ export async function checkAndPublishScheduled() {
           [pub.id]
         );
 
-        // Llamar al workflow 14
-        const wpResponse = await callN8nWebhook('seo/publicar', {
-          draft_id: pub.draft_id,
-          wordpress_endpoint: config.wordpress.mediaEndpoint?.replace('/media', ''),
-          wordpress_auth_header: config.wordpress.authHeader,
-          wordpress_nonce: config.wordpress.nonce
-        });
-
-        if (wpResponse.status === 'success') {
-          // Marcar como publicado (el workflow ya actualiza la tabla)
-          console.log(`[scheduler] Publicado: ${pub.title}`);
-
-          try {
-            const socialResponse = await callN8nWebhook('seo/social/copy/db', {
-              draft_id: pub.draft_id,
-              limit: 1,
-              platforms: ['linkedin', 'facebook']
-            });
-
-            if (socialResponse?.status === 'success') {
-              console.log(`[scheduler] Copys sociales generadas para ${pub.title}`);
-            } else if (socialResponse?.status === 'empty') {
-              console.log(`[scheduler] Copys sociales ya existentes para ${pub.title}`);
-            } else {
-              console.warn(`[scheduler] Resultado inesperado al generar copys sociales para ${pub.title}:`, socialResponse);
-            }
-          } catch (socialError) {
-            console.error(`[scheduler] Error al generar copys sociales para "${pub.title}":`, socialError.message);
-            await query(
-              `UPDATE scheduled_publications 
-               SET last_error = $1,
-                   updated_at = NOW()
-               WHERE id = $2`,
-              [`Social copy workflow failed: ${socialError.message}`, pub.id]
-            );
-          }
-        } else {
-          throw new Error(wpResponse.message || 'Error desconocido del workflow');
-        }
+        await publishScheduledDraft(pub.draft_id, { schedule_id: pub.id, scheduled_datetime: pub.scheduled_datetime });
         
       } catch (error) {
-        console.error(`[scheduler] Error al publicar "${pub.title}":`, error.message);
+        pushLog('error', `[scheduler] Error al publicar "${pub.title}"`, { error: error.message, draftId: pub.draft_id });
         
         // Registrar error
         const newStatus = pub.attempts >= 2 ? 'failed' : 'pending';
@@ -264,13 +245,13 @@ export async function checkAndPublishScheduled() {
         );
 
         if (newStatus === 'failed') {
-          console.error(`[scheduler] Máximo de intentos alcanzado para: ${pub.title}`);
+          pushLog('error', `[scheduler] Máximo de intentos alcanzado para: ${pub.title}`, { draftId: pub.draft_id });
         }
       }
     }
     
   } catch (error) {
-    console.error('[scheduler] Error general:', error);
+    pushLog('error', '[scheduler] Error general', { error: error.message });
   }
 }
 
@@ -278,12 +259,12 @@ let schedulerInterval = null;
 
 export function startScheduler() {
   if (schedulerInterval) {
-    console.log('[scheduler] Ya está corriendo');
+    pushLog('info', '[scheduler] Ya está corriendo');
     return;
   }
 
-  console.log('[scheduler] Iniciando servicio de publicación programada');
-  console.log('[scheduler] Revisando cada 60 segundos');
+  pushLog('info', '[scheduler] Iniciando servicio de publicación programada');
+  pushLog('info', '[scheduler] Revisando cada 60 segundos');
   
   // Ejecutar inmediatamente una vez
   autoScheduleApprovedDrafts();
@@ -300,7 +281,7 @@ export function stopScheduler() {
   if (schedulerInterval) {
     clearInterval(schedulerInterval);
     schedulerInterval = null;
-    console.log('[scheduler] Servicio detenido');
+    pushLog('info', '[scheduler] Servicio detenido');
   }
 }
 
