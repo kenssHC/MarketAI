@@ -1349,6 +1349,11 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
 
   const [scheduledDate, setScheduledDate] = useState(initialScheduledDate || '');
   const [scheduledTime, setScheduledTime] = useState(initialScheduledTime || '12:00');
+  const todayInputDate = useMemo(() => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().split('T')[0];
+  }, []);
 
   const previewDataUrl = draft.preview_image_data_url ?? draft.previewImageDataUrl ?? null;
   const previewBase64 = draft.preview_image_base64 ?? draft.previewImageBase64 ?? null;
@@ -1583,11 +1588,16 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
     }
     const normalizedTime = scheduledTime || '12:00';
     const selectedDateTime = new Date(`${scheduledDate}T${normalizedTime}`);
-    if (selectedDateTime <= new Date()) {
+    const now = new Date();
+    const selectedDateOnly = new Date(selectedDateTime);
+    selectedDateOnly.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selectedDateOnly < today) {
       await Swal.fire({
         icon: 'error',
         title: 'Fecha inválida',
-        text: 'Selecciona una fecha y hora futura.'
+        text: 'Selecciona una fecha igual o posterior a hoy.'
       });
       return;
     }
@@ -1891,7 +1901,7 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
                     type="date"
                     value={scheduledDate}
                     onChange={(e) => setScheduledDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
+                  min={todayInputDate}
                   />
                 </div>
                 <div className="form-group">

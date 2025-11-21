@@ -1,7 +1,7 @@
 ﻿import { query } from '../db.js';
 import callN8nWebhook from './n8n.js';
 import config from '../config.js';
-import { publishScheduledDraft } from './publisher.js';
+import { ensureContentHtmlValue } from './articleGenerator.js';
 
 const schedulerLogs = [];
 const MAX_LOGS = 200;
@@ -19,6 +19,63 @@ function pushLog(level, message, meta = {}) {
   }
   const logFn = level === 'error' ? console.error : console.log;
   logFn(`[scheduler][${level}] ${message}`, Object.keys(meta).length ? meta : '');
+}
+
+async function publishScheduledViaWorkflow({ draftId, scheduleId, scheduledDatetime, draftData }) {
+  const payload = {
+    draft_id: draftId,
+    schedule_id: scheduleId,
+    scheduled_datetime: scheduledDatetime,
+    auto: true,
+    
+    // Datos del draft para validación en n8n
+    title: draftData.title || draftData.meta_title,
+    meta_title: draftData.meta_title || draftData.title,
+    meta_description: draftData.meta_description,
+    content_html: draftData.content_html,
+    content_markdown: draftData.content_markdown,
+    featured_image_url: draftData.featured_image_url,
+    preview_image_base64: draftData.preview_image_base64,
+    preview_image_data_url: draftData.preview_image_data_url,
+    preview_image_format: draftData.preview_image_format,
+    preview_image_alt: draftData.preview_image_alt,
+    wordpress_media_id: draftData.wordpress_media_id,
+    
+    wordpress_endpoint: config.wordpress.mediaEndpoint?.replace('/media', ''),
+    wordpress_auth_header: config.wordpress.authHeader,
+    wordpress_nonce: config.wordpress.nonce
+  };
+
+  const response = await callN8nWebhook('seo/publicar', payload);
+  if (!response || response.status !== 'success') {
+    const message = response?.message || 'Workflow de publicación falló';
+    const error = new Error(message);
+    error.data = response;
+    throw error;
+  }
+  return response;
+}
+
+async function generateSocialCopies(draftId) {
+  try {
+    const socialResponse = await callN8nWebhook('seo/social/copy/db', {
+      draft_id: draftId,
+      limit: 1,
+      platforms: ['linkedin', 'facebook']
+    });
+    if (socialResponse?.status === 'success') {
+      pushLog('info', '[scheduler] Copys sociales generadas', { draftId });
+    } else if (socialResponse?.status === 'empty') {
+      pushLog('info', '[scheduler] Copys sociales ya existentes', { draftId });
+    } else {
+      pushLog('warn', '[scheduler] Resultado inesperado al generar copys sociales', {
+        draftId,
+        response: socialResponse
+      });
+    }
+  } catch (error) {
+    pushLog('error', '[scheduler] Error al generar copys sociales', { draftId, error: error.message });
+  }
 }
 
 export function getSchedulerLogs() {
@@ -68,6 +125,10 @@ export async function autoScheduleApprovedDrafts(options = {}) {
       SELECT 
         d.id, 
         d.title, 
+        d.meta_title,
+        d.meta_description,
+        d.content_html,
+        d.content_markdown,
         COALESCE(d.approved_at, d.updated_at, d.created_at) AS priority_date
       FROM drafts d
       WHERE d.status IN ('draft','review','approved')
@@ -136,6 +197,53 @@ export async function autoScheduleApprovedDrafts(options = {}) {
     pushLog('info', `[auto-scheduler] Start date: ${currentDate.toISOString().split('T')[0]} 12:00`);
 
     for (const draft of draftsResult.rows) {
+      const issues = [];
+      const resolvedTitle = draft.title || draft.meta_title;
+      const resolvedMetaTitle = draft.meta_title || draft.title;
+
+      if (!resolvedTitle) {
+        issues.push('title');
+      }
+      if (!resolvedMetaTitle) {
+        issues.push('meta_title');
+      }
+      if (!draft.meta_description) {
+        issues.push('meta_description');
+      }
+
+      let ensuredHtml = draft.content_html;
+      if (!ensuredHtml && draft.content_markdown) {
+        ensuredHtml = ensureContentHtmlValue({
+          contentHtml: draft.content_html,
+          contentMarkdown: draft.content_markdown
+        });
+      }
+
+      if (!ensuredHtml) {
+        issues.push('content_html');
+      }
+
+      if (issues.length) {
+        pushLog('warn', '[auto-scheduler] Draft omitido por campos faltantes', {
+          draftId: draft.id,
+          missing: issues
+        });
+        // Normalizar meta_title/meta_description si podemos
+        if (!draft.meta_title && resolvedMetaTitle) {
+          await query(
+            `UPDATE drafts
+             SET meta_title = $2,
+                 updated_at = NOW()
+             WHERE id = $1`,
+            [draft.id, resolvedMetaTitle]
+          );
+        }
+        if (!draft.meta_description) {
+          pushLog('warn', '[auto-scheduler] Draft sin meta_description requiere intervención', { draftId: draft.id });
+        }
+        continue;
+      }
+
       let scheduled = false;
       let attempts = 0;
       const maxAttempts = 100;
@@ -217,7 +325,11 @@ export async function checkAndPublishScheduled() {
 
     for (const pub of result.rows) {
       try {
-        pushLog('info', `[scheduler] Publicando: ${pub.title} (draft_id: ${pub.draft_id})`);
+        pushLog('info', `[scheduler] Publicando: ${pub.title} (draft_id: ${pub.draft_id})`, {
+          scheduleId: pub.id,
+          scheduledDatetime: pub.scheduled_datetime,
+          attempts: pub.attempts
+        });
         
         // Actualizar intento
         await query(
@@ -228,13 +340,91 @@ export async function checkAndPublishScheduled() {
           [pub.id]
         );
 
-        await publishScheduledDraft(pub.draft_id, { schedule_id: pub.id, scheduled_datetime: pub.scheduled_datetime });
+        const draftCheck = await query(
+          `SELECT 
+             id,
+             title,
+             meta_title,
+             meta_description,
+             content_html,
+             content_markdown,
+             featured_image_url,
+             preview_image_base64,
+             preview_image_data_url,
+             preview_image_format,
+             preview_image_alt,
+             wordpress_media_id
+           FROM drafts
+           WHERE id = $1`,
+          [pub.draft_id]
+        );
+
+        if (!draftCheck.rowCount) {
+          throw new Error('Draft no encontrado antes de publicar');
+        }
+
+        const draftData = draftCheck.rows[0];
+        const missingFields = [];
+        if (!draftData.title && !draftData.meta_title) missingFields.push('title/meta_title');
+        if (!draftData.meta_description) missingFields.push('meta_description');
+        let ensuredHtml = draftData.content_html;
+        if (!ensuredHtml && draftData.content_markdown) {
+          ensuredHtml = ensureContentHtmlValue({
+            contentHtml: draftData.content_html,
+            contentMarkdown: draftData.content_markdown
+          });
+        }
+        if (!ensuredHtml) missingFields.push('content_html');
+
+        if (missingFields.length) {
+          throw new Error(`Draft incompleto antes de publicar: faltan ${missingFields.join(', ')}`);
+        }
+
+        if (!draftData.content_html && ensuredHtml) {
+          await query(
+            `UPDATE drafts
+             SET content_html = $2,
+                 updated_at = NOW()
+             WHERE id = $1`,
+            [pub.draft_id, ensuredHtml]
+          );
+        }
+
+        const wpResponse = await publishScheduledViaWorkflow({
+          draftId: pub.draft_id,
+          scheduleId: pub.id,
+          scheduledDatetime: pub.scheduled_datetime,
+          draftData: draftData
+        });
+
+        const publishedAt = wpResponse.published_at || new Date().toISOString();
+
+        await query(
+          `UPDATE scheduled_publications
+           SET status = 'published',
+               wordpress_post_id = $2,
+               wordpress_post_url = $3,
+               published_at = $4,
+               last_error = NULL,
+               updated_at = NOW()
+           WHERE id = $1`,
+          [pub.id, wpResponse.wordpress_post_id || null, wpResponse.wordpress_post_url || null, publishedAt]
+        );
+
+        await generateSocialCopies(pub.draft_id);
         
       } catch (error) {
-        pushLog('error', `[scheduler] Error al publicar "${pub.title}"`, { error: error.message, draftId: pub.draft_id });
+        pushLog('error', `[scheduler] Error al publicar "${pub.title}"`, {
+          error: error.message,
+          draftId: pub.draft_id,
+          scheduleId: pub.id,
+          scheduledDatetime: pub.scheduled_datetime,
+          attempts: pub.attempts + 1
+        });
         
         // Registrar error
-        const newStatus = pub.attempts >= 2 ? 'failed' : 'pending';
+        const attemptsAfter = pub.attempts + 1;
+        const newStatus = attemptsAfter >= 2 ? 'failed' : 'pending';
         await query(
           `UPDATE scheduled_publications 
            SET last_error = $1,

@@ -626,17 +626,54 @@ router.post('/:id/schedule', async (req, res) => {
       return res.status(400).json({ message: 'scheduled_date es requerido' });
     }
 
-    // Validar que la fecha sea futura
-  const scheduledDateTime = new Date(`${scheduled_date}T${scheduled_time || '12:00:00'}`);
-    if (scheduledDateTime <= new Date()) {
-      return res.status(400).json({ message: 'La fecha debe ser futura' });
+    // Validar que la fecha no sea anterior a hoy
+    const scheduledDateTime = new Date(`${scheduled_date}T${scheduled_time || '12:00:00'}`);
+    const selectedDateOnly = new Date(scheduledDateTime);
+    selectedDateOnly.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (Number.isNaN(scheduledDateTime.getTime())) {
+      return res.status(400).json({ message: 'Fecha u hora inválida' });
+    }
+    if (selectedDateOnly < today) {
+      return res.status(400).json({ message: 'La fecha debe ser hoy o futura' });
     }
 
-    const draftCheck = await query('SELECT id, content_html, content_markdown FROM drafts WHERE id = $1', [id]);
+    const draftCheck = await query(
+      `SELECT id, title, meta_title, meta_description, content_html, content_markdown
+       FROM drafts
+       WHERE id = $1`,
+      [id]
+    );
     if (!draftCheck.rowCount) {
       return res.status(404).json({ message: 'Draft no encontrado' });
     }
     const draftRow = draftCheck.rows[0];
+
+    const metaTitle =
+      draftRow.meta_title ||
+      draftRow.title ||
+      null;
+
+    const metaDescription =
+      draftRow.meta_description ||
+      null;
+
+    if (!metaTitle || !metaDescription) {
+      return res.status(400).json({ message: 'El draft debe tener título, meta título y meta descripción antes de programar.' });
+    }
+
+    if (!draftRow.meta_title || !draftRow.meta_description) {
+      await query(
+        `UPDATE drafts
+         SET meta_title = COALESCE(meta_title, $2),
+             meta_description = COALESCE(meta_description, $3),
+             updated_at = NOW()
+         WHERE id = $1`,
+        [id, metaTitle, metaDescription]
+      );
+    }
+
     const ensuredHtml = ensureContentHtmlValue({
       contentHtml: draftRow.content_html,
       contentMarkdown: draftRow.content_markdown

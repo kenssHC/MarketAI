@@ -3,9 +3,14 @@ import { query } from '../db.js';
 import { ensureContentHtmlValue } from './articleGenerator.js';
 
 async function uploadFeaturedImage({ draftId, imageDataUrl, imageBase64, imageFormat, imageAlt }) {
-  const base64 = imageBase64 || (imageDataUrl ? imageDataUrl.split(',').pop() : null);
-  if (!base64) {
-    return null;
+  if (!config.wordpress.mediaEndpoint) {
+    throw new Error('WordPress media endpoint no configurado');
+  }
+
+  const normalizedDataUrl = imageDataUrl && imageDataUrl.startsWith('data:') ? imageDataUrl : null;
+  const base64 = imageBase64 || (normalizedDataUrl ? normalizedDataUrl.split(',').pop() : null);
+  if (!base64 || base64.length < 50) {
+    throw new Error('Preview sin datos base64 válidos para subir a WordPress');
   }
 
   const buffer = Buffer.from(base64, 'base64');
@@ -36,6 +41,10 @@ async function uploadFeaturedImage({ draftId, imageDataUrl, imageBase64, imageFo
 }
 
 async function publishPostToWordPress({ draft, schedule }) {
+  if (!config.wordpress.mediaEndpoint) {
+    throw new Error('Configuración de WordPress incompleta (mediaEndpoint)');
+  }
+
   const title = draft.title || draft.meta_title || 'Artículo';
   const excerpt = draft.meta_description || '';
 
@@ -100,6 +109,15 @@ export async function publishScheduledDraft(draftId, schedule) {
   }
 
   let draft = draftResult.rows[0];
+
+  const missing = [];
+  if (!draft.title && !draft.meta_title) missing.push('title/meta_title');
+  if (!draft.meta_description) missing.push('meta_description');
+  if (!draft.content_html && !draft.content_markdown) missing.push('content');
+
+  if (missing.length) {
+    throw new Error(`Draft incompleto, faltan: ${missing.join(', ')}`);
+  }
 
   let contentHtml = ensureContentHtmlValue({
     contentHtml: draft.content_html,
