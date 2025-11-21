@@ -1,5 +1,6 @@
 import express from 'express';
 import { query } from '../db.js';
+import { autoScheduleApprovedDrafts } from '../services/scheduler.js';
 
 const router = express.Router();
 
@@ -59,8 +60,18 @@ router.post('/', async (req, res) => {
     `, [publicationsPerDay, JSON.stringify(publishDays), includeImages]);
 
     const settings = result.rows[0];
+    
+    // Re-programar artículos con la nueva configuración
+    try {
+      await autoScheduleApprovedDrafts({ forceManualReset: true });
+      console.log('[settings] Artículos re-programados con nueva configuración');
+    } catch (scheduleError) {
+      console.error('[settings] Error al re-programar artículos:', scheduleError);
+      // Continuar aunque falle la re-programación
+    }
+    
     res.json({
-      message: 'Configuracion guardada',
+      message: 'Configuracion guardada y artículos re-programados',
       publicationsPerDay: settings.publications_per_day,
       publishDays: settings.publish_days,
       includeImages: settings.include_images,

@@ -690,6 +690,61 @@ router.post('/:id/schedule', async (req, res) => {
       );
     }
 
+    // Verificar y subir imagen si es necesario ANTES de programar
+    const imageCheck = await query(
+      `SELECT 
+         wordpress_media_id,
+         featured_image_url,
+         preview_image_base64,
+         preview_image_data_url,
+         preview_image_format,
+         preview_image_alt,
+         featured_image_prompt
+       FROM drafts
+       WHERE id = $1`,
+      [id]
+    );
+
+    if (imageCheck.rowCount) {
+      const imageData = imageCheck.rows[0];
+      
+      // Si NO tiene imagen en WordPress pero SÍ tiene preview, subirla ahora
+      if (!imageData.wordpress_media_id && !imageData.featured_image_url) {
+        if (imageData.preview_image_base64 || imageData.preview_image_data_url) {
+          try {
+            console.log(`[api] Subiendo imagen a WordPress antes de programar draft ${id}`);
+            
+            const imageResponse = await callN8nWebhook('seo/imagenes/generar', {
+              draft_id: id,
+              limit: 1,
+              force: true,
+              upload_to_wordpress: true,
+              preview_image_base64: imageData.preview_image_base64,
+              preview_image_data_url: imageData.preview_image_data_url,
+              preview_image_format: imageData.preview_image_format || 'png',
+              preview_alt_text: imageData.preview_image_alt || null,
+              preview_visual_prompt: imageData.featured_image_prompt || null,
+              
+              wordpress_endpoint: config.wordpress.mediaEndpoint,
+              wordpress_auth_header: config.wordpress.authHeader,
+              wordpress_nonce: config.wordpress.nonce
+            });
+
+            if (imageResponse?.status === 'success') {
+              console.log(`[api] Imagen subida exitosamente para draft ${id}`);
+              // Limpiar preview después de subir
+              await updateDraftPreviewFields(id, null);
+            } else {
+              console.warn(`[api] No se pudo subir imagen para draft ${id}, programando sin imagen`);
+            }
+          } catch (imageError) {
+            console.error('[api] Error al subir imagen antes de programar', imageError);
+            // Continuar con la programación aunque falle la imagen
+          }
+        }
+      }
+    }
+
     // Verificar si ya tiene una programación
     const existingSchedule = await query(
       'SELECT id FROM scheduled_publications WHERE draft_id = $1 AND status = $2',

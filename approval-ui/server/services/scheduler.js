@@ -108,18 +108,21 @@ export async function autoScheduleApprovedDrafts(options = {}) {
       saturday: 6
     };
 
-    // Cancel pending schedules (automatic always, manual only if forced)
-    await query(`
-        UPDATE scheduled_publications
-        SET status = 'cancelled',
-            cancelled_at = NOW(),
-            cancelled_by = 'auto-scheduler',
-            cancellation_reason = 'Re-programación por cambio de configuración',
-            updated_at = NOW()
-        WHERE status = 'pending'
-          AND scheduled_datetime > NOW()
-          AND scheduled_automatically = true
-      `);
+    // Cancel pending schedules SOLO si se fuerza manualmente (cambio de configuración)
+    if (forceManualReset) {
+      pushLog('info', '[auto-scheduler] Cancelando programaciones automáticas anteriores (cambio de configuración)');
+      await query(`
+          UPDATE scheduled_publications
+          SET status = 'cancelled',
+              cancelled_at = NOW(),
+              cancelled_by = 'auto-scheduler',
+              cancellation_reason = 'Re-programación por cambio de configuración',
+              updated_at = NOW()
+          WHERE status = 'pending'
+            AND scheduled_datetime > NOW()
+            AND scheduled_automatically = true
+        `);
+    }
     
     const draftsResult = await query(`
       SELECT 
@@ -129,6 +132,13 @@ export async function autoScheduleApprovedDrafts(options = {}) {
         d.meta_description,
         d.content_html,
         d.content_markdown,
+        d.wordpress_media_id,
+        d.featured_image_url,
+        d.preview_image_base64,
+        d.preview_image_data_url,
+        d.preview_image_format,
+        d.preview_image_alt,
+        d.featured_image_prompt,
         COALESCE(d.approved_at, d.updated_at, d.created_at) AS priority_date
       FROM drafts d
       WHERE d.status IN ('draft','review','approved')
@@ -242,6 +252,46 @@ export async function autoScheduleApprovedDrafts(options = {}) {
           pushLog('warn', '[auto-scheduler] Draft sin meta_description requiere intervención', { draftId: draft.id });
         }
         continue;
+      }
+
+      // Verificar y subir imagen ANTES de programar automáticamente
+      if (!draft.wordpress_media_id && !draft.featured_image_url) {
+        if (draft.preview_image_base64 || draft.preview_image_data_url) {
+          try {
+            pushLog('info', `[auto-scheduler] Subiendo imagen a WordPress para draft ${draft.id}`);
+            
+            const imageResponse = await callN8nWebhook('seo/imagenes/generar', {
+              draft_id: draft.id,
+              limit: 1,
+              force: true,
+              upload_to_wordpress: true,
+              preview_image_base64: draft.preview_image_base64,
+              preview_image_data_url: draft.preview_image_data_url,
+              preview_image_format: draft.preview_image_format || 'png',
+              preview_alt_text: draft.preview_image_alt || null,
+              preview_visual_prompt: draft.featured_image_prompt || null,
+              
+              wordpress_endpoint: config.wordpress.mediaEndpoint,
+              wordpress_auth_header: config.wordpress.authHeader,
+              wordpress_nonce: config.wordpress.nonce
+            });
+
+            if (imageResponse?.status === 'success') {
+              pushLog('info', `[auto-scheduler] Imagen subida exitosamente para draft ${draft.id}`);
+            } else {
+              pushLog('warn', `[auto-scheduler] No se pudo subir imagen para draft ${draft.id}, programando sin imagen`);
+            }
+          } catch (imageError) {
+            pushLog('error', `[auto-scheduler] Error al subir imagen para draft ${draft.id}`, {
+              error: imageError.message
+            });
+            // Continuar con la programación aunque falle la imagen
+          }
+        } else {
+          pushLog('info', `[auto-scheduler] Draft ${draft.id} no tiene imagen de preview`);
+        }
+      } else {
+        pushLog('info', `[auto-scheduler] Draft ${draft.id} ya tiene imagen en WordPress`);
       }
 
       let scheduled = false;
@@ -390,6 +440,62 @@ export async function checkAndPublishScheduled() {
           );
         }
 
+        // Verificar y subir imagen si es necesario
+        if (!draftData.wordpress_media_id && !draftData.featured_image_url) {
+          // Si tiene imagen de preview pero no está subida a WordPress, subirla ahora
+          if (draftData.preview_image_base64 || draftData.preview_image_data_url) {
+            try {
+              pushLog('info', `[scheduler] Subiendo imagen a WordPress para draft ${pub.draft_id}`);
+              
+              const imageResponse = await callN8nWebhook('seo/imagenes/generar', {
+                draft_id: pub.draft_id,
+                limit: 1,
+                force: true,
+                upload_to_wordpress: true,
+                preview_image_base64: draftData.preview_image_base64,
+                preview_image_data_url: draftData.preview_image_data_url,
+                preview_image_format: draftData.preview_image_format || 'png',
+                preview_alt_text: draftData.preview_image_alt || draftData.featured_image_alt || null,
+                preview_visual_prompt: draftData.featured_image_prompt || null,
+                
+                wordpress_endpoint: config.wordpress.mediaEndpoint,
+                wordpress_auth_header: config.wordpress.authHeader,
+                wordpress_nonce: config.wordpress.nonce
+              });
+
+              if (imageResponse?.status === 'success') {
+                pushLog('info', `[scheduler] Imagen subida exitosamente para draft ${pub.draft_id}`);
+                
+                // Actualizar draftData con los nuevos valores de imagen
+                const updatedDraft = await query(
+                  `SELECT wordpress_media_id, featured_image_url, featured_image_alt
+                   FROM drafts WHERE id = $1`,
+                  [pub.draft_id]
+                );
+                
+                if (updatedDraft.rowCount) {
+                  draftData.wordpress_media_id = updatedDraft.rows[0].wordpress_media_id;
+                  draftData.featured_image_url = updatedDraft.rows[0].featured_image_url;
+                  draftData.featured_image_alt = updatedDraft.rows[0].featured_image_alt;
+                }
+              } else {
+                pushLog('warn', `[scheduler] No se pudo subir imagen para draft ${pub.draft_id}, continuando sin imagen`, {
+                  response: imageResponse
+                });
+              }
+            } catch (imageError) {
+              pushLog('error', `[scheduler] Error al subir imagen para draft ${pub.draft_id}`, {
+                error: imageError.message
+              });
+              // Continuar con la publicación aunque falle la imagen
+            }
+          } else {
+            pushLog('info', `[scheduler] Draft ${pub.draft_id} no tiene imagen de preview para subir`);
+          }
+        } else {
+          pushLog('info', `[scheduler] Draft ${pub.draft_id} ya tiene imagen en WordPress`);
+        }
+
         const wpResponse = await publishScheduledViaWorkflow({
           draftId: pub.draft_id,
           scheduleId: pub.id,
@@ -456,13 +562,15 @@ export function startScheduler() {
   pushLog('info', '[scheduler] Iniciando servicio de publicación programada');
   pushLog('info', '[scheduler] Revisando cada 60 segundos');
   
-  // Ejecutar inmediatamente una vez
+  // Ejecutar auto-programación solo UNA VEZ al iniciar
   autoScheduleApprovedDrafts();
+  
+  // Ejecutar verificación de publicaciones programadas inmediatamente
   checkAndPublishScheduled();
   
-  // Ejecutar cada minuto
+  // Ejecutar SOLO checkAndPublishScheduled cada minuto
+  // autoScheduleApprovedDrafts se ejecutará solo al iniciar o cuando se cambie la configuración
   schedulerInterval = setInterval(() => {
-    autoScheduleApprovedDrafts();
     checkAndPublishScheduled();
   }, 60000);
 }
