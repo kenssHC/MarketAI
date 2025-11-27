@@ -218,6 +218,7 @@ docker compose restart
 - El workflow 12 requiere `GEMINI_API_KEY` y credenciales v�lidas de WordPress (token, Basic Auth o nonce) para `/wp-json/wp/v2/media`
 - Los workflows 5-6 solo requieren PostgreSQL
 - Todos los datos se guardan en vol�menes de Docker
+- Prueba de estado
 
 ---
 
