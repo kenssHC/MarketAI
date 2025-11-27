@@ -408,65 +408,31 @@ router.post('/:keywordId/generate', async (req, res) => {
     const keyword = keywordResult.rows[0];
     const projectName = projectOverride || keyword.project_name || null;
 
+    // OPCIÓN B: Usar la keyword directamente como su propio cluster
+    // Esto permite generar 1 artículo por keyword, sin depender del clustering
     let clusterId = keyword.id;
-    let clusterKeywordValue = keyword.keyword_principal;
+    let keywordAfter = keyword;
 
-    const clusterResponse = await callN8nWebhook('seo/clustering', {
-        project_name: projectName,
-        limit: 100
-      });
-
-    const clusterDetails = Array.isArray(clusterResponse?.clusters_details)
-      ? clusterResponse.clusters_details
-      : [];
-
-    const matchingCluster = clusterDetails.find((detail) => {
-      const principal = (detail.keyword_principal || '').toLowerCase();
-      const secundarias = Array.isArray(detail.keywords_secundarias)
-        ? detail.keywords_secundarias.map((value) => String(value).toLowerCase())
-        : [];
-      const original = (keyword.keyword_principal || '').toLowerCase();
-      return principal === original || secundarias.includes(original);
-    });
-
-    if (matchingCluster?.id) {
-      clusterId = matchingCluster.id;
-    } else if (clusterDetails[0]?.id) {
-      clusterId = clusterDetails[0].id;
-    }
-
-    if (matchingCluster?.keyword_principal) {
-      clusterKeywordValue = matchingCluster.keyword_principal;
-    }
-
-    let refreshedKeyword = await query(
-      'SELECT id, keyword_principal, cluster_name, project_name, status FROM keywords WHERE id = $1',
-      [clusterId]
-    );
-
-    let keywordAfter = refreshedKeyword.rows[0];
-
-    if (!keywordAfter || keywordAfter.status !== 'processed') {
-      const fallback = await query(
-        `SELECT id, keyword_principal, cluster_name, project_name, status
-         FROM keywords
-         WHERE keyword_principal = $1
-         ORDER BY updated_at DESC
-         LIMIT 1`,
-        [clusterKeywordValue]
+    // Si la keyword está pending, marcarla como processed para que pueda generar ideas
+    if (keyword.status === 'pending') {
+      await query(
+        `UPDATE keywords 
+         SET status = 'processed', 
+             processed_at = CURRENT_TIMESTAMP,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [keyword.id]
       );
-
-      if (fallback.rowCount) {
-        keywordAfter = fallback.rows[0];
-        clusterId = keywordAfter.id;
-      }
+      keywordAfter = { ...keyword, status: 'processed' };
     }
 
-    if (!keywordAfter || keywordAfter.status !== 'processed') {
-      return res.status(400).json({ message: 'La keyword no pudo ser procesada por el clustering' });
+    // Si está archived (fue parte de un cluster), también permitir generar
+    if (keyword.status === 'archived') {
+      // Reactivar temporalmente para este proceso
+      keywordAfter = { ...keyword, status: 'processed' };
     }
 
-    // Verificar si ya existen ideas para este cluster
+    // Verificar si ya existen ideas para esta keyword específica
     const existingIdeas = await query(
       `SELECT id, idea_title, categoria, status, created_at
        FROM ideas
@@ -476,8 +442,9 @@ router.post('/:keywordId/generate', async (req, res) => {
       [clusterId]
     );
 
-    // Solo llamar a ideas-generation si NO hay ideas
-    if (!existingIdeas.rowCount) {
+    // Generar nuevas ideas si no existen O si no hay ideas pending
+    const hasPendingIdeas = existingIdeas.rows?.some(row => row.status === 'pending');
+    if (!existingIdeas.rowCount || !hasPendingIdeas) {
       await callN8nWebhook('seo/ideas-generation', {
         keyword_cluster_id: clusterId,
         limit: 1
@@ -485,16 +452,14 @@ router.post('/:keywordId/generate', async (req, res) => {
     }
 
     // Obtener las ideas (existentes o recién creadas)
-    const ideasResult = existingIdeas.rowCount > 0 
-      ? existingIdeas
-      : await query(
-          `SELECT id, idea_title, categoria, status, created_at
-           FROM ideas
-           WHERE keyword_cluster_id = $1
-           ORDER BY created_at DESC
-           LIMIT 20`,
-          [clusterId]
-        );
+    const ideasResult = await query(
+      `SELECT id, idea_title, categoria, status, created_at
+       FROM ideas
+       WHERE keyword_cluster_id = $1
+       ORDER BY created_at DESC
+       LIMIT 20`,
+      [clusterId]
+    );
 
     if (!ideasResult.rowCount) {
       return res.status(400).json({ message: 'No se generaron ideas para esta keyword' });

@@ -1274,7 +1274,9 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey, onPreviewCacheUpdate 
       setGenerating(true);
 
       let processed = 0;
+      const failedKeywords = []; // Keywords que fallaron para reintentar al final
 
+      // Primera pasada: procesar todas las keywords
       for (let index = 0; index < pending.length; index += 1) {
 
         const keywordItem = pending[index];
@@ -1363,63 +1365,152 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey, onPreviewCacheUpdate 
 
           }
 
+          // Guardar keyword fallida para reintentar al final
+          failedKeywords.push({
+            item: keywordItem,
+            error: generationError.message
+          });
+
           onToast(
 
-            `No se pudo generar "${keywordItem.keyword_principal}": ${generationError.message}`,
+            `Error en "${keywordItem.keyword_principal}", se reintentará al final`,
 
-            'error'
+            'warn'
 
           );
 
         }
 
 
+      }
+
+      // Segunda pasada: reintentar keywords fallidas
+      if (failedKeywords.length > 0 && !stopRequested && !connectionInterrupted) {
+        updateProgress(processed, `Reintentando ${failedKeywords.length} keyword(s) fallida(s)...`);
+        
+        for (let i = 0; i < failedKeywords.length; i++) {
+          const { item: keywordItem } = failedKeywords[i];
+          
+          setGenerationInfo({
+            total,
+            current: pending.length + i + 1,
+            label: `🔄 Reintentando: ${keywordItem.keyword_principal}`
+          });
+
+          updateProgress(processed, `🔄 Reintentando (${i + 1}/${failedKeywords.length}): ${keywordItem.keyword_principal}`);
+
+          try {
+            const generationResult = await generateArticleFromKeyword(keywordItem.id, {
+              projectName: keywordItem.project_name || projectName,
+              generateImage: shouldGenerateImages
+            });
+
+            if (generationResult?.draft?.id) {
+              if (shouldGenerateImages && generationResult.imagePreview) {
+                onPreviewCacheUpdate(generationResult.draft.id, generationResult.imagePreview);
+              } else if (!shouldGenerateImages) {
+                onPreviewCacheUpdate(generationResult.draft.id, null);
+              }
+            }
+
+            processed += 1;
+            // Remover de la lista de fallidos
+            failedKeywords.splice(i, 1);
+            i--; // Ajustar índice
+
+            onToast(
+              `✅ Reintento exitoso: "${keywordItem.keyword_principal}"`,
+              'success'
+            );
+
+          } catch (retryError) {
+            console.error('[keywords] Reintento fallido', retryError);
+            
+            if (isConnectionError(retryError)) {
+              connectionInterrupted = true;
+              break;
+            }
+
+            onToast(
+              `❌ Reintento fallido: "${keywordItem.keyword_principal}"`,
+              'error'
+            );
+          }
+
+          if (stopRequested) break;
+        }
       }
 
       Swal.close();
 
       loadKeywords();
 
-      if (connectionInterrupted) {
-
-        onToast(`Conexion interrumpida. Se generaron ${processed} de ${total} articulos.`, 'warn');
-
-      } else if (stopRequested) {
-
-        onToast(`Proceso detenido. Se generaron ${processed} de ${total} articulos.`, 'info');
-
-      } else {
-
-        onToast('Todos los articulos fueron generados.', 'success');
-
-      }
+      // Construir mensaje de resumen
+      const finalFailedCount = failedKeywords.length;
+      const buildResultMessage = () => {
+        let msg = `<p>Se generaron <strong>${processed} de ${total}</strong> artículos`;
+        
+        if (finalFailedCount > 0) {
+          const failedNames = failedKeywords.map(f => f.item.keyword_principal).join(', ');
+          msg += `</p><p style="color: #f59e0b; margin-top: 8px;">⚠️ ${finalFailedCount} keyword(s) no se pudieron generar: <em>${failedNames}</em>`;
+        }
+        
+        if (connectionInterrupted) {
+          msg += `</p><p style="color: #ef4444; margin-top: 8px;">La conexión se interrumpió durante el proceso.`;
+        } else if (stopRequested) {
+          msg += `</p><p style="margin-top: 8px;">El proceso fue detenido manualmente.`;
+        }
+        
+        msg += '</p>';
+        return msg;
+      };
 
       if (processed > 0) {
+        // Mostrar SweetAlert de carga mientras se programa el calendario
+        Swal.fire({
+          title: 'Programando artículos',
+          html: '<p>Adaptando los artículos al calendario según tu configuración...</p>',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          showConfirmButton: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
 
         try {
-
           await triggerAutoSchedule(false);
 
-          onToast(
-
-            connectionInterrupted
-
-              ? 'Calendario actualizado para los articulos generados antes de la desconexion.'
-
-              : 'Calendario actualizado segun la configuracion.',
-
-            'success'
-
-          );
+          // Mostrar mensaje de éxito
+          await Swal.fire({
+            icon: finalFailedCount > 0 ? 'warning' : 'success',
+            title: finalFailedCount > 0 ? 'Artículos programados (con advertencias)' : '¡Artículos programados!',
+            html: buildResultMessage() + '<p style="margin-top: 12px;">Los artículos fueron programados en el calendario.</p>',
+            confirmButtonText: 'Entendido',
+            timer: finalFailedCount > 0 ? undefined : 5000,
+            timerProgressBar: finalFailedCount === 0
+          });
 
         } catch (scheduleError) {
-
           console.error('[keywords] auto-schedule failed', scheduleError);
-
-          onToast('Articulos creados, pero no se pudo reordenar el calendario.', 'warn');
-
+          await Swal.fire({
+            icon: 'warning',
+            title: 'Artículos creados',
+            html: buildResultMessage() + '<p style="margin-top: 12px; color: #ef4444;">No se pudo actualizar el calendario automáticamente.</p>',
+            confirmButtonText: 'Entendido'
+          });
         }
-
+      } else if (finalFailedCount > 0) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'No se generaron artículos',
+          html: `<p>Todas las keywords fallaron durante la generación.</p>${buildResultMessage()}`,
+          confirmButtonText: 'Entendido'
+        });
+      } else if (connectionInterrupted) {
+        onToast(`Conexión interrumpida. No se generaron artículos.`, 'warn');
+      } else if (stopRequested) {
+        onToast(`Proceso detenido. No se generaron artículos.`, 'info');
       }
 
     } catch (error) {
@@ -1534,9 +1625,19 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey, onPreviewCacheUpdate 
 
   async function handleDeleteKeyword(item) {
 
-    const confirmed = window.confirm(`Eliminar la keyword "${item.keyword_principal}"?`);
+    const result = await Swal.fire({
+      title: '¿Eliminar keyword?',
+      html: `<p>Estás a punto de eliminar:</p><p><strong>"${item.keyword_principal}"</strong></p>`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      focusCancel: true
+    });
 
-    if (!confirmed) return;
+    if (!result.isConfirmed) return;
 
     try {
 
@@ -2969,6 +3070,18 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
 
     }
 
+    // Mostrar SweetAlert de carga
+    Swal.fire({
+      title: 'Publicando artículo',
+      html: '<p>Subiendo contenido e imagen a WordPress...</p>',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
     try {
 
       setPublishing(true);
@@ -2993,7 +3106,19 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
 
       const response = await publishDraftNow(draft.id);
 
-      onToast(`Publicado exitosamente: ${response.wordpress_post_url}`, 'success');
+      // Mostrar mensaje de éxito
+      await Swal.fire({
+        icon: 'success',
+        title: '¡Artículo publicado!',
+        html: `<p>El artículo fue publicado exitosamente en WordPress.</p>
+               <a href="${response.wordpress_post_url}" target="_blank" rel="noopener noreferrer" 
+                  style="display: inline-block; margin-top: 12px; color: #3b82f6; text-decoration: underline;">
+                  Ver artículo publicado ↗
+               </a>`,
+        confirmButtonText: 'Cerrar',
+        timer: 8000,
+        timerProgressBar: true
+      });
 
       onClose();
 
@@ -3001,7 +3126,12 @@ function BlogEditor({ bundle, onClose, onSaved, onRegenerated, onToast }) {
 
       console.error(error);
 
-      onToast(error.message, 'error');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error al publicar',
+        html: `<p>No se pudo publicar el artículo:</p><p style="color: #ef4444;">${error.message}</p>`,
+        confirmButtonText: 'Entendido'
+      });
 
     } finally {
 
