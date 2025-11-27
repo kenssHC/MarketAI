@@ -296,7 +296,8 @@ function BlogCalendario({ onToast, onOpenEditor }) {
 
       const response = await fetchDrafts({
 
-        status: 'draft,review',
+        //status: 'draft,review',
+        status: 'draft,review,approved,published',
 
         qaStatus: 'all', // Incluir drafts sin QA
 
@@ -400,7 +401,15 @@ function BlogCalendario({ onToast, onOpenEditor }) {
 
     // Usar la fecha programada si existe, de lo contrario usar la fecha de creación
 
-    const dateToUse = draft.scheduledDatetime ? new Date(draft.scheduledDatetime) : new Date(draft.createdAt);
+    //const dateToUse = draft.scheduledDatetime ? new Date(draft.scheduledDatetime) : new Date(draft.createdAt);
+
+    const dateToUse = draft.publishedAt
+      ? new Date(draft.publishedAt)
+      : (draft.scheduledDatetime
+        ? new Date(draft.scheduledDatetime)
+        : new Date(draft.createdAt));
+
+    
 
     if (dateToUse.getFullYear() === year && dateToUse.getMonth() === month) {
 
@@ -508,47 +517,37 @@ function BlogCalendario({ onToast, onOpenEditor }) {
 
                         <div className="calendar-day-drafts">
 
-                          {draftsByDay[day].map(draft => (
+                          {draftsByDay[day].map(draft => {
+                            const isPublished = Boolean(draft.publishedAt);
+                            const isPastDay = day && (new Date(year, month, day) < todayStart);
+                            const isEditable = !isPublished && !isPastDay;
 
-                            <div
-
-                              key={draft.id}
-
-                              className={`calendar-draft-item ${(day && (new Date(year, month, day) < todayStart)) ? 'calendar-draft-item--disabled' : ''}`}
-
-                              onClick={(day && (new Date(year, month, day) < todayStart)) ? undefined : () => handleDraftClick(draft)}
-
-                              aria-disabled={(day && (new Date(year, month, day) < todayStart)) ? 'true' : 'false'}
-
-                              title={(day && (new Date(year, month, day) < todayStart)) ? 'Ya publicado / no editable' : undefined}
-
-                            >
-
-                              <span className="calendar-draft-title">
-
-                                {draft.title || draft.metaTitle || 'Sin título'}
-
-                              </span>
-
-                              <button
-
-                                type="button"
-
-                                className="calendar-draft-delete"
-
-                                title="Eliminar título"
-
-                                onClick={(ev) => handleDeleteDraft(draft, ev)}
-
-                                aria-label="Eliminar título"
-
+                            return (
+                              <div
+                                key={draft.id}
+                                className={`calendar-draft-item ${isPublished ? 'calendar-draft-item--published' : ''} ${isPastDay ? 'calendar-draft-item--disabled' : ''}`}
+                                onClick={isEditable ? () => handleDraftClick(draft) : undefined}
+                                aria-disabled={!isEditable ? 'true' : 'false'}
+                                title={isPublished ? 'Artículo publicado' : (isPastDay ? 'Ya pasó la fecha' : undefined)}
                               >
-                                🗑️
-                              </button>
+                                <span className="calendar-draft-title">
+                                  {draft.title || draft.metaTitle || 'Sin título'}
+                                </span>
 
-                            </div>
-
-                          ))}
+                                {!isPublished && (
+                                  <button
+                                    type="button"
+                                    className="calendar-draft-delete"
+                                    title="Eliminar título"
+                                    onClick={(ev) => handleDeleteDraft(draft, ev)}
+                                    aria-label="Eliminar título"
+                                  >
+                                    🗑️
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
 
                         </div>
 
