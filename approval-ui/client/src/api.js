@@ -77,6 +77,15 @@ export async function deleteAllKeywords() {
   return handleResponse(response, 'No se pudieron eliminar las keywords');
 }
 
+export async function clusterPendingKeywords(body = {}) {
+  const response = await fetch('/api/keywords/cluster-pending', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify(body)
+  });
+  return handleResponse(response, 'No se pudieron agrupar las keywords pendientes');
+}
+
 export async function fetchDrafts(params = {}) {
   const response = await fetch(buildUrl('/api/drafts', params));
   return handleResponse(response, 'No se pudieron cargar los drafts');

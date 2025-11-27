@@ -238,6 +238,81 @@ router.post('/manual', async (req, res) => {
   }
 });
 
+
+router.post('/cluster-pending', async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(Number(req.body?.limit) || 100, 25), 500);
+
+    const pendingResult = await query(
+      `
+        SELECT 
+          COALESCE(project_name, '__default__') AS project_name,
+          COUNT(*) AS pending_count
+        FROM keywords
+        WHERE status = 'pending'
+        GROUP BY COALESCE(project_name, '__default__')
+        ORDER BY pending_count DESC
+      `
+    );
+
+    if (!pendingResult.rowCount) {
+      return res.json({
+        message: 'No hay keywords pendientes por clusterear.',
+        processedProjects: 0,
+        successes: 0,
+        failures: 0,
+        limit,
+        details: []
+      });
+    }
+
+    const summary = [];
+    for (const row of pendingResult.rows) {
+      const projectName = row.project_name === '__default__' ? null : row.project_name;
+      try {
+        const response = await callN8nWebhook('seo/clustering', {
+          project_name: projectName || undefined,
+          limit
+        });
+        summary.push({
+          projectName: projectName || null,
+          status: 'success',
+          pendingCount: Number(row.pending_count),
+          response
+        });
+      } catch (error) {
+        summary.push({
+          projectName: projectName || null,
+          status: 'error',
+          pendingCount: Number(row.pending_count),
+          error: error.message
+        });
+      }
+    }
+
+    const successes = summary.filter((item) => item.status === 'success').length;
+    const failures = summary.length - successes;
+
+    res.json({
+      message:
+        failures > 0
+          ? 'El clustering se ejecutó con advertencias. Revisa los proyectos con error.'
+          : 'Clustering ejecutado correctamente.',
+      processedProjects: summary.length,
+      successes,
+      failures,
+      limit,
+      details: summary
+    });
+  } catch (error) {
+    console.error('[api] failed to cluster pending keywords', error);
+    res.status(500).json({
+      message: 'Error al ejecutar el clustering global',
+      details: error.message
+    });
+  }
+});
+
 router.post('/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {

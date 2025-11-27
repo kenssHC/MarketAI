@@ -4,6 +4,7 @@ import {
   fetchKeywords,
   createKeywordManual,
   uploadKeywordsCsv,
+  clusterPendingKeywords,
   generateArticleFromKeyword,
   updateKeyword,
   deleteKeyword,
@@ -672,6 +673,19 @@ function BlogKeywords({ onOpenEditor, onToast, refreshKey, onPreviewCacheUpdate 
     const pending = keywords.filter((item) => item.status !== 'processed');
     if (!pending.length) {
       onToast('No hay keywords pendientes para generar articulos.', 'warn');
+      return;
+    }
+
+    try {
+      const clusterSummary = await clusterPendingKeywords();
+      if (clusterSummary?.processedProjects) {
+        onToast(
+          `Clustering ejecutado para ${clusterSummary.processedProjects} proyectos`,
+          clusterSummary.failures ? 'warn' : 'success'
+        );
+      }
+    } catch (clusterError) {
+      onToast(clusterError.message || 'No se pudo preparar el clustering', 'error');
       return;
     }
 
